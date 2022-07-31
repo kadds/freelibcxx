@@ -4,7 +4,7 @@
 
 using namespace freelibcxx;
 
-TEST_CASE("create", "bitset")
+TEST_CASE("create bitset", "bitset")
 {
     bit_set s(&LibAllocatorV, 128);
     REQUIRE(s.count() == 128);
@@ -12,7 +12,7 @@ TEST_CASE("create", "bitset")
     REQUIRE(v.count() == 512);
 }
 
-TEST_CASE("set/clean", "bitset")
+TEST_CASE("set/clean biset", "bitset")
 {
     bit_set_inplace<1024> s;
     s.clean(2);
@@ -33,7 +33,7 @@ TEST_CASE("set/clean", "bitset")
     REQUIRE(s.get(513));
 }
 
-TEST_CASE("set/clean all", "bitset")
+TEST_CASE("set/clean all bitset", "bitset")
 {
     bit_set_inplace<1024> s;
     s.set_all();
@@ -62,7 +62,7 @@ TEST_CASE("set/clean all", "bitset")
     REQUIRE(!s.get(1023));
 }
 
-TEST_CASE("scan", "bitset")
+TEST_CASE("scan bitset", "bitset")
 {
     bit_set_inplace<128> s;
     s.set(8);

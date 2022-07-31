@@ -32,5 +32,5 @@ template <typename E> void testing()
     SECTION("range single") { REQUIRE(rng.gen_range(1UL, 2UL) == 1UL); }
 }
 
-TEST_CASE("mt19937 testing", "random") { testing<mt19937_random_engine>(); }
-TEST_CASE("linear testing", "random") { testing<linear_random_engine>(); }
+TEST_CASE("mt19937 rng", "random") { testing<mt19937_random_engine>(); }
+TEST_CASE("linear rng", "random") { testing<linear_random_engine>(); }

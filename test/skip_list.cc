@@ -5,13 +5,13 @@
 
 using namespace freelibcxx;
 
-TEST_CASE("create", "skip_list")
+TEST_CASE("create skip list", "skip_list")
 {
     skip_list<int> list(&LibAllocatorV);
     REQUIRE(list.size() == 0);
 }
 
-TEST_CASE("insert", "skip_list")
+TEST_CASE("insert skip list", "skip_list")
 {
     skip_list<int> list(&LibAllocatorV, Catch::rngSeed());
     list.insert(1);
@@ -22,29 +22,31 @@ TEST_CASE("insert", "skip_list")
     REQUIRE(list.has(2));
 }
 
-TEST_CASE("iterator", "skip_list")
+TEST_CASE("iterator skip list", "skip_list")
 {
-    skip_list<int> list(&LibAllocatorV, Catch::rngSeed(), {1, 2, 3, 4, 5, 6});
-    int j = 0;
-    for (auto i : list)
+    SECTION("noconst")
     {
-        REQUIRE(i == j);
-        j++;
+        skip_list<int> list(&LibAllocatorV, Catch::rngSeed(), {1, 2, 3, 4, 5, 6});
+        int j = 0;
+        for (auto i : list)
+        {
+            REQUIRE(i == j);
+            j++;
+        }
+    }
+    SECTION("const")
+    {
+        const skip_list<int> list(&LibAllocatorV, Catch::rngSeed(), {1, 2, 3, 4, 5, 6});
+        int j = 1;
+        for (const auto &i : list)
+        {
+            REQUIRE(i == j);
+            j++;
+        }
     }
 }
 
-TEST_CASE("const_iterator", "skip_list")
-{
-    const skip_list<int> list(&LibAllocatorV, Catch::rngSeed(), {1, 2, 3, 4, 5, 6});
-    int j = 1;
-    for (const auto &i : list)
-    {
-        REQUIRE(i == j);
-        j++;
-    }
-}
-
-TEST_CASE("copy", "skip_list")
+TEST_CASE("copy skip list", "skip_list")
 {
     skip_list<int> list(&LibAllocatorV, Catch::rngSeed(), {1, 2, 3});
     skip_list<int> list2 = list;
@@ -67,7 +69,7 @@ TEST_CASE("copy", "skip_list")
     REQUIRE(list2.has(5));
 }
 
-TEST_CASE("move", "skip_list")
+TEST_CASE("move skip list", "skip_list")
 {
     skip_list<int> list(&LibAllocatorV, Catch::rngSeed(), {1, 2, 3});
     skip_list<int> list2 = std::move(list);
@@ -89,7 +91,7 @@ TEST_CASE("move", "skip_list")
     REQUIRE(list2.size() == 0);
 }
 
-TEST_CASE("find", "skip_list")
+TEST_CASE("find element in skip list", "skip_list")
 {
     skip_list<int> list(&LibAllocatorV, Catch::rngSeed(), {1, 2, 4});
     auto iter = list.find(2);
@@ -100,7 +102,7 @@ TEST_CASE("find", "skip_list")
     REQUIRE(iter.get()->element == 4);
 }
 
-TEST_CASE("find_binary", "skip_list")
+TEST_CASE("find binary in skip list", "skip_list")
 {
     skip_list<int> list(&LibAllocatorV, Catch::rngSeed(), {1, 2, 4});
     auto iter = list.upper_find(2);

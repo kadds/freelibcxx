@@ -4,38 +4,43 @@
 
 using namespace freelibcxx;
 
-TEST_CASE("create", "slist")
+TEST_CASE("create slist", "slist")
 {
     singly_linked_list<int> list(&LibAllocatorV);
     REQUIRE(list.size() == 0);
+    REQUIRE(list.empty());
 }
 
-TEST_CASE("push", "slist")
+TEST_CASE("insert slist", "slist")
 {
-    singly_linked_list<int> list(&LibAllocatorV);
-    list.push_front(1);
-    list.push_front(2);
-    list.push_front(3);
-    REQUIRE(list.size() == 3);
-    REQUIRE(list.at(0) == 3);
-    REQUIRE(list.at(1) == 2);
-    REQUIRE(list.at(2) == 1);
+    SECTION("push")
+    {
+        singly_linked_list<int> list(&LibAllocatorV);
+        list.push_front(1);
+        list.push_front(2);
+        list.push_front(3);
+        REQUIRE(list.size() == 3);
+        REQUIRE(list.at(0) == 3);
+        REQUIRE(list.at(1) == 2);
+        REQUIRE(list.at(2) == 1);
+        list.clear();
+        REQUIRE(list.size() == 0);
+    }
+    SECTION("insert")
+    {
+        singly_linked_list<int> list(&LibAllocatorV, {1, 2, 3});
+        list.insert_after(list.begin(), std::move(-1));
+        list.insert_after(++list.begin(), std::move(-2));
+        REQUIRE(list.size() == 5);
+        REQUIRE(list.at(0) == 1);
+        REQUIRE(list.at(1) == -1);
+        REQUIRE(list.at(2) == -2);
+        REQUIRE(list.at(3) == 2);
+        REQUIRE(list.at(4) == 3);
+    }
 }
 
-TEST_CASE("insert", "slist")
-{
-    singly_linked_list<int> list(&LibAllocatorV, {1, 2, 3});
-    list.insert_after(list.begin(), std::move(-1));
-    list.insert_after(++list.begin(), std::move(-2));
-    REQUIRE(list.size() == 5);
-    REQUIRE(list.at(0) == 1);
-    REQUIRE(list.at(1) == -1);
-    REQUIRE(list.at(2) == -2);
-    REQUIRE(list.at(3) == 2);
-    REQUIRE(list.at(4) == 3);
-}
-
-TEST_CASE("remove", "slist")
+TEST_CASE("remove element from slist", "slist")
 {
     singly_linked_list<int> list(&LibAllocatorV, {1, 2, 3});
     list.remove(list.begin());
@@ -46,36 +51,31 @@ TEST_CASE("remove", "slist")
     REQUIRE(list.at(0) == 2);
 }
 
-TEST_CASE("iterator", "slist")
+TEST_CASE("iterator slist", "slist")
 {
-    singly_linked_list<int> list(&LibAllocatorV, {1, 2, 3});
-    int j = 1;
-    for (auto i : list)
+    SECTION("noconst")
     {
-        REQUIRE(i == j);
-        j++;
+        singly_linked_list<int> list(&LibAllocatorV, {1, 2, 3});
+        int j = 1;
+        for (auto i : list)
+        {
+            REQUIRE(i == j);
+            j++;
+        }
+    }
+    SECTION("const")
+    {
+        const singly_linked_list<int> list(&LibAllocatorV, {1, 2, 3});
+        int j = 1;
+        for (const auto &i : list)
+        {
+            REQUIRE(i == j);
+            j++;
+        }
     }
 }
 
-TEST_CASE("const_iterator", "slist")
-{
-    const singly_linked_list<int> list(&LibAllocatorV, {1, 2, 3});
-    int j = 1;
-    for (const auto &i : list)
-    {
-        REQUIRE(i == j);
-        j++;
-    }
-}
-
-TEST_CASE("empty", "slist")
-{
-    singly_linked_list<int> list(&LibAllocatorV);
-    REQUIRE(list.empty());
-    list.clear();
-}
-
-TEST_CASE("copy", "slist")
+TEST_CASE("copy slist", "slist")
 {
     singly_linked_list<int> list(&LibAllocatorV, {1, 2, 3});
     singly_linked_list<int> list2(list);
@@ -90,7 +90,7 @@ TEST_CASE("copy", "slist")
     REQUIRE(list2.at(0) == 5);
 }
 
-TEST_CASE("move", "slist")
+TEST_CASE("move slist", "slist")
 {
     singly_linked_list<int> list(&LibAllocatorV, {1, 2, 3});
     singly_linked_list<int> list2(std::move(list));
@@ -108,7 +108,7 @@ TEST_CASE("move", "slist")
     REQUIRE(list2.size() == 0);
 }
 
-TEST_CASE("object", "slist")
+TEST_CASE("object slist", "slist")
 {
     singly_linked_list<Int> list(&LibAllocatorV, {1, 2, 3});
     list.push_front(0);

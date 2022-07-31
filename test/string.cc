@@ -109,3 +109,40 @@ TEST_CASE("iterator of string", "string")
         }
     }
 }
+
+TEST_CASE("create string_view from string", "string")
+{
+    const char *test = "tri";
+    string ss(&LibAllocatorV, "string");
+    auto view = ss.view().substr(1, 3);
+    SECTION("iterator")
+    {
+        int j = 0;
+        for (auto &i : view)
+        {
+            REQUIRE(i == test[j]);
+            j++;
+        }
+    }
+}
+
+TEST_CASE("split string_view", "string")
+{
+    const_string_view view("abc,def,gh,i,");
+    auto rets = view.split(',', &LibAllocatorV);
+    REQUIRE(rets.size() == 5);
+    REQUIRE(rets[0] == "abc");
+    REQUIRE(rets[1] == "def");
+    REQUIRE(rets[2] == "gh");
+    REQUIRE(rets[3] == "i");
+    REQUIRE(rets[4] == "");
+}
+
+TEST_CASE("split n string_view", "string")
+{
+    const_string_view view("abc,def,gh,i,");
+    const_string_view views[4];
+    auto cnt = view.split_n<4>(',', views);
+    REQUIRE(cnt == 4);
+    REQUIRE(views[3] == "i");
+}

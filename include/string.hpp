@@ -40,6 +40,12 @@ template <typename CE> class base_string_view
         , len_(len)
     {
     }
+    // from cstr
+    base_string_view(CE ptr)
+        : ptr_(ptr)
+        , len_(strlen(ptr))
+    {
+    }
 
     CE data() { return ptr_; }
 
@@ -49,10 +55,34 @@ template <typename CE> class base_string_view
 
     iterator end() { return iterator(ptr_ + len_); }
 
-    void split2(base_string_view &v0, base_string_view &v1, iterator iter)
+    base_string_view substr(size_t pos, size_t len)
     {
-        v0 = base_string_view(ptr_, iter.get() - ptr_);
-        v1 = base_string_view(iter.get() + 1, len_ - (iter.get() - ptr_));
+        CXXASSERT(pos < len_ && pos + len < len_);
+        return base_string_view(ptr_ + pos, len);
+    }
+
+    template <size_t N> size_t split_n(char c, base_string_view views[N])
+    {
+        CE p = ptr_;
+        CE prev = p;
+        size_t cnt = 0;
+        for (size_t i = 0; i < len_ && cnt < N; i++)
+        {
+            if (*p == c)
+            {
+                if (prev < p)
+                {
+                    views[cnt++] = base_string_view(prev, p - prev);
+                }
+                prev = p + 1;
+            }
+            p++;
+        }
+        if (cnt < N)
+        {
+            views[cnt++] = base_string_view(prev, p - prev);
+        }
+        return cnt;
     }
 
     vector<base_string_view<CE>> split(char c, Allocator *vec_allocator)
@@ -66,18 +96,39 @@ template <typename CE> class base_string_view
             {
                 if (prev < p)
                 {
-                    vec.push_back(base_string_view<CE>(prev, p - prev));
+                    vec.push_back(base_string_view(prev, p - prev));
                 }
                 prev = p + 1;
             }
             p++;
         }
-        if (prev < p)
-        {
-            vec.push_back(base_string_view<CE>(prev, p - prev));
-        }
+        vec.push_back(base_string_view(prev, p - prev));
         return vec;
     }
+
+    bool operator==(const string &rhs) const;
+    bool operator==(const base_string_view &rhs) const
+    {
+        if (len_ != rhs.len_)
+        {
+            return false;
+        }
+        return memcmp(ptr_, rhs.ptr_, len_) == 0;
+    }
+
+    bool operator==(const char *rhs) const
+    {
+        size_t len = strlen(rhs);
+        if (len != len_)
+        {
+            return false;
+        }
+        return memcmp(ptr_, rhs, len) == 0;
+    }
+
+    bool operator!=(const string &rhs) const { return !operator==(rhs); }
+    bool operator!=(const base_string_view &rhs) const { return !operator==(rhs); }
+    bool operator!=(const char *rhs) const { return !operator==(rhs); }
 
   private:
     CE ptr_;
@@ -258,6 +309,7 @@ class string
     bool operator==(const char *rhs) const;
 
     bool operator!=(const string &rhs) const { return !operator==(rhs); }
+    bool operator!=(const char *rhs) const { return !operator==(rhs); }
 
   private:
     // little endian machine
@@ -356,6 +408,11 @@ class string
 template <typename CE> string base_string_view<CE>::to_string(Allocator *allocator)
 {
     return string(allocator, ptr_, len_);
+}
+
+template <typename CE> bool base_string_view<CE>::operator==(const string &rhs) const
+{
+    return operator==()(rhs.view());
 }
 
 } // namespace freelibcxx

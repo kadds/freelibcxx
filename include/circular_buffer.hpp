@@ -1,5 +1,6 @@
 #pragma once
 #include "allocator.hpp"
+#include "utils.hpp"
 #include <cstddef>
 
 namespace freelibcxx
@@ -8,11 +9,11 @@ namespace freelibcxx
 template <typename T> class circular_buffer
 {
   private:
+    size_t read_off_;
     T *buffer_;
     size_t length_;
-    size_t read_off_;
-    size_t write_off_;
     Allocator *allocator_;
+    size_t write_off_;
 
   public:
     circular_buffer(Allocator *allocator, size_t size)
@@ -37,38 +38,55 @@ template <typename T> class circular_buffer
     circular_buffer &operator=(const circular_buffer &cb) = delete;
     circular_buffer(const circular_buffer &cb) = delete;
 
-    void write(const T &t) { write(&t, 1); }
+    bool write(const T &t) { return write(&t, 1) == 1; }
 
-    void write(const T *t, size_t len)
+    size_t write(const T *t, size_t len)
     {
-        size_t max_off = write_off_ + len;
-        size_t rest_off = 0;
-        size_t new_write_off = max_off;
-        if (max_off >= length_)
-        {
-            rest_off = max_off - length_;
-            max_off = length_;
-            new_write_off = rest_off;
-        }
+        size_t w_size = capacity_writeable();
+        len = min(w_size, len);
+        size_t offset = write_off_;
 
-        for (size_t off = write_off_; off < max_off; off++, t++)
+        for (size_t i = 0; i < len; i++)
         {
-            buffer_[off] = *t;
+            if (offset >= length_) [[unlikely]]
+            {
+                offset = 0;
+            }
+            buffer_[offset++] = t[i];
         }
-
-        for (size_t off = 0; off < rest_off; off++, t++)
-        {
-            buffer_[off] = *t;
-        }
-
-        write_off_ = new_write_off;
+        write_off_ = offset;
+        return len;
     }
 
     size_t capacity() const { return length_; }
 
-    bool full() const { return (write_off_ + 1) % length_ == read_off_; }
+    size_t capacity_writeable() const
+    {
+        if (write_off_ < read_off_)
+        {
+            return read_off_ - write_off_ - 1;
+        }
+        else
+        {
+            return length_ - write_off_ + read_off_ - 1;
+        }
+    }
 
-    bool empty() const { return read_off_ == write_off_; }
+    size_t capacity_readable() const
+    {
+        if (write_off_ < read_off_)
+        {
+            return length_ - read_off_ + write_off_;
+        }
+        else
+        {
+            return write_off_ - read_off_;
+        }
+    }
+
+    bool full() const { return capacity_writeable() == 0; }
+
+    bool empty() const { return capacity_writeable() == capacity() - 1; }
 
     bool last(T *t)
     {
@@ -85,63 +103,25 @@ template <typename T> class circular_buffer
         return true;
     }
 
-    bool read(T *t)
-    {
-        if (empty()) [[unlikely]]
-        {
-            return false;
-        }
-        *t = buffer_[read_off_];
-        if (read_off_ + 1 >= length_)
-        {
-            read_off_ = 0;
-        }
-        else
-        {
-            read_off_++;
-        }
-        return true;
-    }
+    bool read(T *t) { return read(t, 1) == 1; }
 
     size_t read(T *t, size_t size)
     {
-        if (empty()) [[unlikely]]
-        {
-            return 0;
-        }
-        size_t rest = 0;
-        if (read_off_ < write_off_)
-        {
-            rest = write_off_ - read_off_;
-        }
-        else
-        {
-            rest = length_ - read_off_ + write_off_;
-        }
-        if (size > rest)
-        {
-            size = rest;
-        }
-        size_t max_off = read_off_ + size;
-        size_t rest_off = 0;
-        size_t new_read = max_off;
-        if (max_off >= length_)
-        {
-            rest_off = size - (max_off - read_off_);
-            max_off = length_;
-            new_read = rest_off;
-        }
+        size_t len = capacity_readable();
+        size = min(len, size);
 
-        for (size_t off = read_off_; off < max_off; off++, t++)
-        {
-            *t = buffer_[off];
-        }
+        size_t offset = read_off_;
 
-        for (size_t off = 0; off < rest_off; off++, t++)
+        for (size_t i = 0; i < len; i++)
         {
-            *t = buffer_[off];
+            if (offset >= length_) [[unlikely]]
+            {
+                offset = 0;
+            }
+            t[i] = buffer_[offset++];
         }
-        read_off_ = new_read;
+        read_off_ = offset;
+
         return size;
     }
 };
