@@ -30,8 +30,8 @@ string &string::operator=(string &&rhs)
 }
 void string::append_buffer(const char *buf, size_t length)
 {
-    // assert(!is_shared());
-    size_t count = get_count();
+    CXXASSERT(!is_shared());
+    size_t count = size();
     size_t new_count = count + length;
     char *old_buf = nullptr;
     Allocator *allocator = nullptr;
@@ -88,56 +88,50 @@ char string::pop_back()
 {
     const char *b = data();
     size_t length = size();
+    CXXASSERT(length > 0);
     char c = b[length - 1];
-    remove_at(length - 1, length);
+    remove_n(length - 1, 1);
+    return c;
+}
+char string::pop_front()
+{
+    const char *b = data();
+    CXXASSERT(size() > 0);
+    char c = b[0];
+    remove_n(0, 1);
     return c;
 }
 
-void string::remove_at(size_t index, size_t end_index)
+void string::remove_n(size_t index, size_t chars)
 {
-    // assert(!is_shared());
-    size_t length = end_index - index;
-    size_t count = get_count();
-    // assert(index < end_index && end_index <= count);
-    size_t new_count = count - length;
-    char *old_buf = nullptr;
-    Allocator *allocator = nullptr;
+    CXXASSERT(!is_shared());
+    size_t count = size();
+    CXXASSERT(count >= chars);
+    size_t new_count = count - chars;
+    size_t end_index = index + chars;
+
+    char *buf = nullptr;
     if (!is_sso())
     {
         // heap_
-        old_buf = heap_.get_buffer();
-        if (new_count < stack_.get_cap())
-        {
-            allocator = heap_.get_allocator();
-            stack_.set_allocator(allocator);
-            memcpy(stack_.get_buffer(), old_buf, index);
-            memcpy(stack_.get_buffer() + index, old_buf + end_index, new_count - index);
-            stack_.get_buffer()[new_count] = 0;
-            allocator->deallocate(old_buf);
-            stack_.set_count(new_count);
-        }
-        else
-        {
-            memcpy(old_buf + index, old_buf + end_index, new_count - index);
-            old_buf[new_count] = 0;
-            heap_.set_count(new_count);
-        }
+        buf = heap_.get_buffer();
+        heap_.set_count(new_count);
     }
     else
     {
-        old_buf = stack_.get_buffer();
-        memcpy(old_buf + index, old_buf + end_index, length);
-        old_buf[new_count] = 0;
+        buf = stack_.get_buffer();
         stack_.set_count(new_count);
     }
+    memcpy(buf + index, buf + end_index, new_count - index);
+    buf[new_count] = 0;
 }
 
 bool string::operator==(const string &rhs) const
 {
     if (&rhs == this) [[likely]]
         return true;
-    size_t lc = get_count();
-    size_t rc = rhs.get_count();
+    size_t lc = size();
+    size_t rc = rhs.size();
     if (lc != rc)
     {
         return false;
@@ -146,12 +140,22 @@ bool string::operator==(const string &rhs) const
     const char *r = rhs.data();
     return memcmp(l, r, lc) == 0;
 }
+bool string::operator==(const char *rhs) const
+{
+    size_t len = strlen(rhs);
+    if (len != size())
+    {
+        return false;
+    }
+    return memcmp(data(), rhs, size()) == 0;
+}
 
 size_t string::select_capacity(size_t capacity)
 {
     size_t new_cap = capacity;
     return new_cap;
 }
+
 void string::free()
 {
     if (is_sso()) [[likely]]

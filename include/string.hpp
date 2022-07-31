@@ -123,7 +123,12 @@ class string
 
     ///\brief init from char array lit
     /// readonly & shared
-    string(const char *str) { init_lit(str); }
+    static string from_cstr(const char *str)
+    {
+        string s(nullptr);
+        s.init_lit(str);
+        return s;
+    }
 
     ~string() { free(); }
 
@@ -131,11 +136,21 @@ class string
 
     string &operator=(string &&rhs);
 
-    size_t size() const { return get_count(); }
+    size_t size() const
+    {
+        if (is_sso()) [[likely]]
+        {
+            return stack_.get_count();
+        }
+        else
+        {
+            return heap_.get_count();
+        }
+    }
 
     size_t capacity() const
     {
-        if (is_sso()) [[unlikely]]
+        if (is_sso()) [[likely]]
         {
             return stack_.get_cap();
         }
@@ -153,7 +168,11 @@ class string
 
     const_iterator end() const { return const_iterator(data() + size()); }
 
-    string_view view() { return string_view(data(), size()); }
+    string_view view()
+    {
+        CXXASSERT(!is_shared());
+        return string_view(data(), size());
+    }
 
     const_string_view view() const { return const_string_view(data(), size()); }
 
@@ -171,6 +190,7 @@ class string
 
     char *data()
     {
+        CXXASSERT(!is_shared());
         if (is_sso()) [[likely]]
         {
             return stack_.get_buffer();
@@ -180,6 +200,7 @@ class string
             return heap_.get_buffer();
         }
     }
+    const char *cdata() const { return data(); }
 
     const char *data() const
     {
@@ -200,8 +221,14 @@ class string
     void push_back(char ch);
 
     char pop_back();
+    char pop_front();
 
-    void remove_at(size_t index, size_t end_index);
+    void remove_at(size_t index, size_t end_index)
+    {
+        CXXASSERT(index < end_index);
+        remove_n(index, end_index - index);
+    }
+    void remove_n(size_t index, size_t chars);
 
     void remove(iterator beg, iterator end)
     {
@@ -212,7 +239,7 @@ class string
 
     char at(size_t index) const
     {
-        // assert(index < get_count());
+        CXXASSERT(index < size());
         return data()[index];
     }
 
@@ -221,8 +248,14 @@ class string
         append(rhs);
         return *this;
     }
+    string &operator+=(const char *rhs)
+    {
+        append_buffer(rhs, (size_t)strlen(rhs));
+        return *this;
+    }
 
     bool operator==(const string &rhs) const;
+    bool operator==(const char *rhs) const;
 
     bool operator!=(const string &rhs) const { return !operator==(rhs); }
 
@@ -260,7 +293,7 @@ class string
         Allocator *get_allocator() const { return allocator; }
         void set_allocator(Allocator *alc)
         {
-            // assert((reinterpret_cast<size_t>(alc) & 0x1) == 0); // bit 0
+            CXXASSERT((reinterpret_cast<size_t>(alc) & 0x1) == 0); // bit 0
             allocator = alc;
         }
         void init()
@@ -315,14 +348,6 @@ class string
     void init(Allocator *allocator, const char *str, int len = -1);
 
     void init_lit(const char *str);
-
-    size_t get_count() const
-    {
-        if (is_sso())
-            return stack_.get_count();
-        else
-            return heap_.get_count();
-    }
 
   private:
     bool is_sso() const { return stack_.is_stack(); }

@@ -147,7 +147,7 @@ class base_forward_iterator
 template <typename T>
 requires must_forward_iterator<T> T previous_iterator(T beg, T target)
 {
-    // assert(beg != target);
+    CXXASSERT(beg != target);
     T prev = beg;
     while (beg != target)
     {
@@ -160,14 +160,14 @@ requires must_forward_iterator<T> T previous_iterator(T beg, T target)
 template <typename T>
 requires forward_iterator<T> T previous_iterator(T beg, T target)
 {
-    // assert(beg != target);
+    CXXASSERT(beg != target);
     return --target;
 }
 
 template <typename T>
 requires forward_iterator<T> T next_iterator(T end, T target)
 {
-    // assert(end != target);
+    CXXASSERT(end != target);
     return ++target;
 }
 

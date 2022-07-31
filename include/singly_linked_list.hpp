@@ -97,7 +97,7 @@ template <typename E> class singly_linked_list
 
     E pop_front()
     {
-        cassert(head_->next != tail_ && count_ > 0);
+        CXXASSERT(head_->next != tail_ && count_ > 0);
 
         E e = head_->next->element;
         list_node *node = head_->next;
@@ -117,13 +117,13 @@ template <typename E> class singly_linked_list
 
     const E &front() const
     {
-        cassert(count_ > 0);
+        CXXASSERT(count_ > 0);
         return head_->next->element;
     }
 
     E &front()
     {
-        cassert(count_ > 0);
+        CXXASSERT(count_ > 0);
         return head_->next->element;
     }
 

@@ -6,13 +6,13 @@
 class LibAllocator : public freelibcxx::Allocator
 {
   public:
-    void *allocate(size_t size, size_t align)
+    void *allocate(size_t size, size_t align) noexcept
     {
         void *p = new char[size];
         memset(p, 1, size);
         return p;
     }
-    void deallocate(void *p) { delete[](char *) p; }
+    void deallocate(void *p) noexcept { delete[](char *) p; }
 };
 extern LibAllocator LibAllocatorV;
 

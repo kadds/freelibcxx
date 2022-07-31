@@ -4,26 +4,27 @@
 
 using namespace freelibcxx;
 
-TEST_CASE("create", "string")
+TEST_CASE("empty string", "string")
 {
     string ss(&LibAllocatorV);
     REQUIRE(ss.size() == 0);
+    REQUIRE(strcmp(ss.data(), "") == 0);
+    REQUIRE(ss == "");
 }
 
-TEST_CASE("sso", "string")
+TEST_CASE("sso string", "string")
 {
     string ss(&LibAllocatorV, "hi");
     REQUIRE(ss.size() == 2);
-    REQUIRE(ss.at(0) == 'h');
-    REQUIRE(ss.at(1) == 'i');
+    REQUIRE(strcmp("hi", ss.data()) == 0);
 
-    string ss2("hi");
+    // readonly string
+    string ss2 = string::from_cstr("hi");
     REQUIRE(ss2.size() == 2);
-    REQUIRE(ss2.at(0) == 'h');
-    REQUIRE(ss2.at(1) == 'i');
+    REQUIRE(strcmp("hi", ss2.cdata()) == 0);
 }
 
-TEST_CASE("append", "string")
+TEST_CASE("append to string", "string")
 {
     string ss(&LibAllocatorV);
     ss += "base1234567890";
@@ -38,8 +39,9 @@ TEST_CASE("append", "string")
     REQUIRE(ss2 == "base123098");
 }
 
-TEST_CASE("copy", "string")
+TEST_CASE("copy string", "string")
 {
+    // no shared copy
     string ss(&LibAllocatorV, "hi");
     string ss2 = ss;
     REQUIRE(ss == ss2);
@@ -50,7 +52,7 @@ TEST_CASE("copy", "string")
     REQUIRE(ss != ss2);
 }
 
-TEST_CASE("move", "string")
+TEST_CASE("move string", "string")
 {
     string ss = string(&LibAllocatorV, "hi");
     string ss2 = std::move(ss);
@@ -58,7 +60,7 @@ TEST_CASE("move", "string")
     REQUIRE(ss == "");
 }
 
-TEST_CASE("remove", "string")
+TEST_CASE("remove char from string", "string")
 {
     string ss(&LibAllocatorV, "abcdefghi0123456789");
     ss += "01234567";
@@ -68,4 +70,42 @@ TEST_CASE("remove", "string")
     REQUIRE(ss == "adefghi0123456789067");
     REQUIRE(ss.pop_back() == '7');
     REQUIRE(ss == "adefghi012345678906");
+    REQUIRE(ss.pop_front() == 'a');
+    REQUIRE(ss == "defghi012345678906");
+}
+
+TEST_CASE("iterator of string", "string")
+{
+    const char *ch = "abcdefg";
+    SECTION("noconst")
+    {
+        string ss(&LibAllocatorV, ch);
+        int j = 0;
+        for (auto &i : ss)
+        {
+            REQUIRE(i == ch[j]);
+            j++;
+        }
+    }
+    SECTION("const")
+    {
+        const string ss(&LibAllocatorV, ch);
+        int j = 0;
+        for (const auto &i : ss)
+        {
+            REQUIRE(i == ch[j]);
+            j++;
+        }
+    }
+    const char *ch2 = "abcdefghijklmnopqrstuvw";
+    SECTION("nosso")
+    {
+        const string ss(&LibAllocatorV, ch2);
+        int j = 0;
+        for (const auto &i : ss)
+        {
+            REQUIRE(i == ch2[j]);
+            j++;
+        }
+    }
 }

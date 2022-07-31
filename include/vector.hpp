@@ -84,7 +84,6 @@ template <typename E> class base_vector
     template <typename... Args> iterator push_back(Args &&...args)
     {
         check_capacity(count_ + 1);
-        // assert(cap_ > count_);
         new (buffer_ + count_) E(std::forward<Args>(args)...);
         count_++;
         return iterator(buffer_ + count_ - 1);
@@ -97,7 +96,7 @@ template <typename E> class base_vector
 
     E pop_back()
     {
-        // assert(count_ > 0);
+        CXXASSERT(count_ > 0);
         E e = std::move(buffer_[count_ - 1]);
         remove_at(count_ - 1);
         return e;
@@ -105,7 +104,7 @@ template <typename E> class base_vector
 
     E pop_front()
     {
-        // assert(count_ > 0);
+        CXXASSERT(count_ > 0);
         E e = std::move(buffer_[0]);
         remove_at(0);
         return e;
@@ -113,31 +112,31 @@ template <typename E> class base_vector
 
     E &back()
     {
-        // assert(count_ > 0);
+        CXXASSERT(count_ > 0);
         return buffer_[count_ - 1];
     }
     E &front()
     {
-        // assert(count_ > 0);
+        CXXASSERT(count_ > 0);
         return buffer_[0];
     }
 
     const E &back() const
     {
-        // assert(count_ > 0);
+        CXXASSERT(count_ > 0);
         return buffer_[count_ - 1];
     }
 
     const E &front() const
     {
-        // assert(count_ > 0);
+        CXXASSERT(count_ > 0);
         return buffer_[0];
     }
 
     // insert before
     template <typename... Args> iterator insert_at(size_t index, Args &&...args)
     {
-        // assert(index <= count_);
+        CXXASSERT(index <= count_);
         check_capacity(count_ + 1);
         if (count_ > 0) [[likely]]
         {
@@ -197,13 +196,13 @@ template <typename E> class base_vector
 
     E &at(size_t index)
     {
-        // assert(index < count_);
+        CXXASSERT(index < count_);
         return buffer_[index];
     }
 
     const E &at(size_t index) const
     {
-        // assert(index < count_);
+        CXXASSERT(index < count_);
         return buffer_[index];
     }
 
@@ -257,7 +256,7 @@ template <typename E> class base_vector
 
     void remove_at(size_t index, size_t end_index)
     {
-        // assert(index >= 0 && index <= end_index && end_index <= count_);
+        CXXASSERT(index >= 0 && index <= end_index && end_index <= count_);
         size_t rm_cnt = end_index - index;
 
         for (size_t i = index; i + rm_cnt < count_; i++)

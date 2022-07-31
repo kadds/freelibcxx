@@ -103,7 +103,7 @@ template <typename E> class linked_list
 
     E pop_back()
     {
-        // assert(tail_->prev != (list_node *)head_ && count_ > 0);
+        CXXASSERT(tail_->prev != (list_node *)head_ && count_ > 0);
         E e = tail_->prev->element;
         list_node *node = tail_->prev;
         node->prev->next = (list_node *)tail_;
@@ -115,7 +115,7 @@ template <typename E> class linked_list
 
     E pop_front()
     {
-        // assert(tail_->prev != (list_node *)head_ && count_ > 0);
+        CXXASSERT(tail_->prev != (list_node *)head_ && count_ > 0);
         E e = head_->next->element;
         list_node *node = head_->next;
         node->next->prev = (list_node *)head_;
@@ -140,29 +140,29 @@ template <typename E> class linked_list
 
     const E &back() const
     {
-        // assert(tail_->prev != (list_node *)head_ && count_ > 0);
+        CXXASSERT(tail_->prev != (list_node *)head_ && count_ > 0);
         return tail_->prev->element;
     }
 
     const E &front() const
     {
-        // assert(tail_->prev != (list_node *)head_ && count_ > 0);
+        CXXASSERT(tail_->prev != (list_node *)head_ && count_ > 0);
         return head_->next->element;
     }
 
     E &back()
     {
-        // assert(tail_->prev != (list_node *)head_ && count_ > 0);
+        CXXASSERT(tail_->prev != (list_node *)head_ && count_ > 0);
         return tail_->prev->element;
     }
 
     E &front()
     {
-        // assert(tail_->prev != (list_node *)head_ && count_ > 0);
+        CXXASSERT(tail_->prev != (list_node *)head_ && count_ > 0);
         return head_->next->element;
     }
 
-    /// return node if element finded else return end()
+    /// returns node iterator if find else returns iterator::end()
     iterator find(const E &e)
     {
         auto it = begin();
@@ -223,7 +223,7 @@ template <typename E> class linked_list
 
     E &at(size_t idx)
     {
-        // assert(idx < count_);
+        CXXASSERT(idx < count_);
         size_t i = 0;
         auto it = begin();
         auto last = end();

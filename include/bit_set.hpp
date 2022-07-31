@@ -1,6 +1,7 @@
 #pragma once
 #include "allocator.hpp"
 #include "extern.hpp"
+#include "utils.hpp"
 #include <cstddef>
 
 namespace freelibcxx
@@ -156,7 +157,7 @@ class bit_set
         : element_count_(element_count)
         , allocator_(allocator)
     {
-
+        CXXASSERT(is_pow_of_2(element_count));
         size_t bytes = (element_count + 7) / 8;
         data_ = reinterpret_cast<size_t *>(allocator->allocate(bytes, 8));
     }
@@ -238,6 +239,7 @@ class bit_set
 template <int ElementCount> class bit_set_inplace
 {
     size_t data_[(ElementCount + 63) / 64];
+    static_assert(is_pow_of_2(ElementCount));
 
   public:
     bit_set_inplace() = default;

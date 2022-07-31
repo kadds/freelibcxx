@@ -2,19 +2,24 @@
 #include <source_location>
 #include <utility>
 
-#ifdef cassert
-#undef cassert
-#endif
-
 namespace freelibcxx
 {
-void cassert_fail(const char *expr, const char *file, int line);
+[[gnu::weak]] void assert_fail(const char *expr, const char *file, int line, const char *msg);
 }
-#define cassert(expr)                                                                                                  \
+
+#define CXXASSERT_MSG(expr, msg)                                                                                       \
     do                                                                                                                 \
     {                                                                                                                  \
         if (!(expr)) [[unlikely]]                                                                                      \
         {                                                                                                              \
-            ::freelibcxx::cassert_fail(#expr, __FILE__, __LINE__);                                                     \
+            if (::freelibcxx::assert_fail != nullptr) [[likely]]                                                       \
+            {                                                                                                          \
+                ::freelibcxx::assert_fail(#expr, __FILE__, __LINE__, msg);                                             \
+            }                                                                                                          \
+            else                                                                                                       \
+            {                                                                                                          \
+            }                                                                                                          \
         }                                                                                                              \
     } while (0)
+
+#define CXXASSERT(expr) CXXASSERT_MSG(expr, "")

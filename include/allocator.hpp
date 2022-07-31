@@ -1,4 +1,5 @@
 #pragma once
+#include "assert.hpp"
 #include <cstddef>
 #include <utility>
 namespace freelibcxx
@@ -14,15 +15,15 @@ class Allocator
     /// \param size The memory size which you want to allocate
     /// \param align The pointer alignment value
     /// \return Return the address has been allocate
-    virtual void *allocate(size_t size, size_t align) = 0;
+    virtual void *allocate(size_t size, size_t align) noexcept = 0;
     /// Deallocate a memory address.
     /// Default is virtual address.
     ///
     /// \param ptr The address which you want to deallocate
     /// \return None
-    virtual void deallocate(void *ptr) = 0;
+    virtual void deallocate(void *ptr) noexcept = 0;
 
-    template <typename T, typename... Args> T *New(Args &&...args)
+    template <typename T, typename... Args> T *New(Args &&...args) noexcept
     {
         auto ptr = allocate(sizeof(T), alignof(T));
         if (!ptr) [[unlikely]]
@@ -32,7 +33,7 @@ class Allocator
         auto k = new (ptr) T(std::forward<Args>(args)...);
         return k;
     }
-    template <typename T, typename... Args> T *NewArray(size_t n, Args &&...args)
+    template <typename T, typename... Args> T *NewArray(size_t n, Args &&...args) noexcept
     {
         auto ptr = allocate(sizeof(T) * n, alignof(T));
         if (!ptr) [[unlikely]]
@@ -47,13 +48,13 @@ class Allocator
         return t;
     }
 
-    template <typename T> void Delete(T *t)
+    template <typename T> void Delete(T *t) noexcept
     {
         t->~T();
         deallocate(t);
     }
 
-    template <typename T> void DeleteArray(size_t n, T *t)
+    template <typename T> void DeleteArray(size_t n, T *t) noexcept
     {
         for (size_t i = 0; i < n; i++)
         {
