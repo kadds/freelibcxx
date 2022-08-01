@@ -3,6 +3,7 @@
 #include "common.hpp"
 #include "iterator.hpp"
 #include "random.hpp"
+#include <cstddef>
 #include <functional>
 #include <linux/limits.h>
 #include <utility>
@@ -18,11 +19,11 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
   private:
     template <typename N, typename K> struct value_fn
     {
-        K operator()(N val) { return &val->element; }
+        K operator()(N val) { return &val->element_; }
     };
     template <typename N> struct next_fn
     {
-        N operator()(N val) { return val->next; }
+        N operator()(N val) { return val->level_[0].next_; }
     };
 
     using NE = list_node *;
@@ -38,8 +39,8 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
 
     skip_list(Allocator *allocator, uint64_t seed = 0)
         : count_(0)
-        , level_(1)
-        , engine_(allocator->New<RDENG>(seed))
+        , level_(0)
+        , engine_(seed)
         , allocator_(allocator)
     {
         init();
@@ -54,9 +55,17 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
         }
     }
 
-    skip_list(const skip_list &rhs) { copy(rhs); }
+    skip_list(const skip_list &rhs)
+        : engine_(rhs.engine_.pick())
+    {
+        copy(rhs);
+    }
 
-    skip_list(skip_list &&rhs) { move(std::move(rhs)); }
+    skip_list(skip_list &&rhs)
+        : engine_(rhs.engine_())
+    {
+        move(std::move(rhs));
+    }
 
     ~skip_list() { free(); }
 
@@ -81,78 +90,81 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
     template <typename... Args> iterator insert(Args &&...args)
     {
         int node_level = this->rand();
+        int cur_level = level_;
 
-        if (node_level > level_)
-            level_ = node_level;
+        if (node_level > cur_level)
+        {
+            cur_level = node_level;
+        }
+        int level = cur_level;
 
-        auto new_end_node = allocator_->New<node_t>(nullptr, std::forward<Args>(args)...);
+        auto node = node_;
+        auto insert_node = make_node(node_level + 1, std::forward<Args>(args)...);
+        node_t *cache_nodes[MAXLEVEL];
         // for each level of node
         // find the element path
-        auto node = stack_[MAXLEVEL - level_];
-        for (int i = 0; i < level_; i++)
+        while (cur_level >= 0)
         {
-            while (node->next && node->next->end_node->element < new_end_node->element)
+            auto next = node->level_[cur_level].next_;
+            while (next && next->element_ < insert_node->element_)
             {
-                node = node->next;
+                node = next;
+                next = node->level_[cur_level].next_;
             }
-            stack_[i] = node;
-            node = node->child;
+            cache_nodes[cur_level] = node;
+            cur_level--;
         }
-
-        // create end node
-        auto end_node_prev = stack_[level_ - 1];
-        new_end_node->next = end_node_prev->next;
-        end_node_prev->next = new_end_node;
-        count_++;
 
         // set index node linked list
-        int base = level_ - node_level;
-        for (int i = node_level - 1; i > 0; i--)
+        for (int l = 0; l <= node_level; l++)
         {
-            auto next = stack_[base + i - 1]->next;
-            auto child = stack_[base + i]->next;
-            stack_[base + i - 1]->next = allocator_->New<node_t>();
-            stack_[base + i - 1]->next->set(next, child, new_end_node);
+            insert_node->level_[l].next_ = cache_nodes[l]->level_[l].next_;
+            cache_nodes[l]->level_[l].next_ = insert_node;
         }
+        insert_node->back_ = node;
 
-        return iterator(new_end_node);
+        count_++;
+        level_ = level;
+        return iterator(insert_node);
     }
 
-    iterator remove(const E &element)
+    bool remove(const E &element)
     {
-        auto node = stack_[MAXLEVEL - level_];
-        int lev_delete = 0;
-        int cur_level = 0;
-        // for each get element per level
-        for (int i = 0; i < level_; i++)
+        int cur_level = level_;
+        auto node = node_;
+        node_t *cache_nodes[MAXLEVEL];
+        // for each level of node
+        // find the element path
+        while (cur_level >= 0)
         {
-            while (node->next && node->next->end_node->element < element)
+            auto next = node->level_[cur_level].next_;
+            while (next && next->element < element)
             {
-                node = node->next;
+                node = next;
+                next = node->level_[cur_level].next_;
             }
-            if (node->next && node->next->end_node->element == element)
-            {
-                auto next = node->next->next;
-                allocator_->Delete(node->next);
-                node->next = next;
-                cur_level++;
-                if (i < level_ - 1 && !stack_[i + MAXLEVEL - level_]->next)
-                    lev_delete++;
-            }
-            stack_[i] = node;
-            node = node->child;
+            cache_nodes[cur_level] = node;
+            cur_level--;
         }
-        if (cur_level == 0)
-            return iterator(nullptr);
+        auto next = node->level_[0]->next;
+        if (next == nullptr || next->element_ != element)
+        {
+            return false;
+        }
 
-        if (cur_level == level_)
-            level_ -= lev_delete;
+        // remote nodes each level
+        for (int l = level_; l >= 0; l--)
+        {
+            cache_nodes[l]->level_[l].next_ = next->level_[l].next_;
+        }
+        next->element_.~E();
+        allocator_->Delete(next);
 
         count_--;
-        return iterator(stack_[cur_level - 1]->next);
+        return true;
     }
 
-    iterator remove(iterator iter) { return remove(*iter); }
+    iterator remove(iterator iter) {}
 
     size_t size() const { return count_; }
 
@@ -160,133 +172,146 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
 
     size_t deep() const { return level_; }
 
-    E front() const { return stack_[MAXLEVEL - 1]->next->element; }
+    const E &front() const { return node_->level_[0].next->element_; }
 
-    iterator begin() const { return iterator(stack_[MAXLEVEL - 1]->next); }
+    iterator begin() const { return iterator(node_->level_[0].next_); }
 
     iterator end() const { return iterator(nullptr); }
 
     iterator find(const E &element) const
     {
-        node_t *node = stack_[MAXLEVEL - level_], *last_node = nullptr;
+        node_t *node = node_;
+        int cur_level = level_;
 
-        for (int i = 0; i < level_; i++)
+        while (cur_level >= 0)
         {
-            while (node->next && node->next->end_node->element < element)
+            auto next = node->level_[cur_level].next_;
+            while (next && next->element_ < element)
             {
-                node = node->next;
+                node = next;
+                next = node->level_[cur_level].next_;
             }
-            last_node = node;
-            node = node->child;
+            cur_level--;
         }
-        if (last_node->next && last_node->next->end_node->element == element)
-            return iterator(last_node->next);
+        auto next = node->level_[0].next_;
+        if (next && next->element_ == element)
+        {
+            return iterator(next);
+        }
         return iterator(nullptr);
     }
 
-    iterator lower_find(const E &element) const { return lower_find(element, std::greater<E>()); }
+    iterator lower_find(const E &element) const { return lower_find(element, std::greater_equal<E>()); }
 
-    template <typename CMP = std::greater<E>> iterator lower_find(const E &element, CMP cmp) const
+    template <typename CMP = std::greater_equal<E>> iterator lower_find(const E &element, CMP cmp) const
     {
-        node_t *node = stack_[MAXLEVEL - level_], *last_node = nullptr;
+        node_t *node = node_;
+        int cur_level = level_;
 
-        for (int i = 0; i < level_; i++)
+        while (cur_level >= 0)
         {
-            while (node->next && !cmp(node->next->end_node->element, element))
+            auto next = node->level_[cur_level].next_;
+            while (next && !cmp(next->element_, element))
             {
-                node = node->next;
+                node = next;
+                next = node->level_[cur_level].next_;
             }
-            last_node = node;
-            node = node->child;
+            cur_level--;
         }
-        return iterator(last_node);
+        if (cmp(node->element_, element))
+        {
+            return iterator(node);
+        }
+        else
+        {
+            return iterator(node->level_[0].next_);
+        }
     }
 
-    iterator upper_find(const E &element) const { return upper_find(element, std::greater_equal<E>()); }
+    iterator upper_find(const E &element) const { return upper_find(element, std::greater<E>()); }
 
-    template <typename CMP = std::greater_equal<E>> iterator upper_find(const E &element, CMP cmp) const
+    template <typename CMP = std::greater<E>> iterator upper_find(const E &element, CMP cmp) const
     {
-        node_t *node = stack_[MAXLEVEL - level_], *last_node = nullptr;
+        node_t *node = node_;
+        int cur_level = level_;
 
-        for (int i = 0; i < level_; i++)
+        while (cur_level >= 0)
         {
-            while (node->next && !cmp(node->next->end_node->element, element))
+            auto next = node->level_[cur_level].next_;
+            while (next && !cmp(next->element_, element))
             {
-                node = node->next;
+                node = next;
+                next = node->level_[cur_level].next_;
             }
-            last_node = node;
-            node = node->child;
+            cur_level--;
         }
-        return iterator(last_node);
+        if (cmp(node->element_, element))
+        {
+            return iterator(node);
+        }
+        else
+        {
+            return iterator(node->level_[0].next_);
+        }
     }
 
     bool has(const E &element) const { return find(element) != end(); }
 
     void clear()
     {
-        count_ = 0;
-        for (int i = 0; i < level_; i++)
+        node_t *node = node_;
+        node_t *c = node->level_[0].next_;
+        for (int i = MAXLEVEL - 1; i >= 0; i--)
         {
-            node_t *p0 = stack_[MAXLEVEL - i - 1];
-            node_t *node = p0->next;
-            while (node)
-            {
-                auto next = node->next;
-                allocator_->Delete<node_t>(node);
-                node = next;
-            }
-            p0->next = nullptr;
+            node_->level_[i].next_ = nullptr;
         }
+        while (c != nullptr)
+        {
+            auto next = c->level_[0].next_;
+            c->element_.~E();
+            allocator_->Delete(c);
+            c = next;
+        }
+        count_ = 0;
     }
 
   private:
     size_t count_;
     int level_;
 
-    node_t *stack_[MAXLEVEL];
+    node_t *node_;
     /// an array likes  [
     ///  node_level 1
     ///  node_level 2
     ///  node_level 3
     ///  node_level 4 root
     /// ]
-    RDENG *engine_;
+    RDENG engine_;
     Allocator *allocator_;
 
     int rand()
     {
         int node_level = 1;
-        random_generator rng(*engine_);
+        random_generator rng(engine_);
 
         while (rng.gen_range(0, 2) == 0 && node_level < MAXLEVEL)
             node_level++;
-        return node_level;
+        return node_level - 1;
     }
 
     void free()
     {
-        if (stack_ != nullptr)
+        if (node_ != nullptr)
         {
             clear();
             count_ = 0;
             level_ = 0;
-            for (int i = 0; i < MAXLEVEL; i++)
-            {
-                allocator_->Delete<node_t>(stack_[MAXLEVEL - i - 1]);
-            }
+            allocator_->Delete(node_);
+            node_ = nullptr;
         }
     }
 
-    void init()
-    {
-        node_t *last = nullptr;
-        for (int i = 0; i < MAXLEVEL; i++)
-        {
-            stack_[MAXLEVEL - i - 1] = allocator_->New<node_t>();
-            stack_[MAXLEVEL - i - 1]->set(nullptr, last, nullptr);
-            last = stack_[MAXLEVEL - i - 1];
-        }
-    }
+    void init() { node_ = make_empty_node(MAXLEVEL); }
 
     void copy(const skip_list &rhs)
     {
@@ -309,41 +334,55 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
     {
         count_ = rhs.count_;
         level_ = rhs.level_;
-        memcpy(stack_, rhs.stack_, sizeof(stack_));
-        memset(rhs.stack_, 0, sizeof(rhs.stack_));
+        node_ = rhs.node_;
         allocator_ = rhs.allocator_;
+
         rhs.count_ = 0;
         rhs.level_ = 0;
+        rhs.node_ = nullptr;
+    }
+
+    node_t *make_empty_node(int level)
+    {
+        void *n = allocator_->allocate(sizeof(node_t) + level * sizeof(index_node_t), alignof(node_t));
+        node_t *node = new (n) node_t();
+        for (int i = 0; i < level; i++)
+        {
+            node->level_[i].next_ = nullptr;
+        }
+        return node;
+    }
+
+    template <typename... Args> node_t *make_node(int level, Args &&...args)
+    {
+        void *n = allocator_->allocate(sizeof(node_t) + level * sizeof(index_node_t), alignof(node_t));
+        node_t *node = new (n) node_t(nullptr, std::forward<Args>(args)...);
+        return node;
     }
 
   public:
+    struct index_node_t
+    {
+        node_t *next_;
+    };
     struct node_t
     {
-        node_t *next;
-        node_t *end_node;
         union
         {
-            node_t *child;
-            E element;
+            E element_;
         };
-
-        node_t() {}
-
-        void set(node_t *next, node_t *child, node_t *end_node)
-        {
-            this->next = next;
-            this->child = child;
-            this->end_node = end_node;
-        }
-
+        node_t *back_;
+        index_node_t level_[0];
         template <typename... Args>
-        node_t(node_t *next, Args &&...args)
-            : next(next)
-            , end_node(this)
-            , element(std::forward<Args>(args)...)
+        node_t(node_t *back, Args &&...args)
+            : back_(back)
+            , element_(std::forward<Args>(args)...)
+        {
+        }
+        node_t()
+            : back_(nullptr)
         {
         }
     };
-
 }; // namespace util
 } // namespace freelibcxx

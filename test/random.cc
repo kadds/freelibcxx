@@ -13,23 +13,24 @@ template <typename E> void testing()
 
     SECTION("range int")
     {
-        for (int i = 0; i < 10000; i++)
-        {
-            auto val = rng.gen_range(-1, 10);
-            REQUIRE(val >= -1);
-            REQUIRE(val < 10);
-        }
+        auto val = rng.gen_range(-1, 10);
+        REQUIRE(val >= -1);
+        REQUIRE(val < 10);
     }
     SECTION("range uint")
     {
-        for (int i = 0; i < 10000; i++)
-        {
-            auto val = rng.gen_range(1UL, 10000UL);
-            REQUIRE(val >= 1UL);
-            REQUIRE(val < 10000UL);
-        }
+        auto val = rng.gen_range(1UL, 10000UL);
+        REQUIRE(val >= 1UL);
+        REQUIRE(val < 10000UL);
     }
     SECTION("range single") { REQUIRE(rng.gen_range(1UL, 2UL) == 1UL); }
+
+    uint64_t x = 0;
+    for (int i = 0; i < 1000'0000; i++)
+    {
+        x += rng.gen_range(1UL, 3UL);
+    }
+    REQUIRE(x >= 10);
 }
 
 TEST_CASE("mt19937 rng", "random") { testing<mt19937_random_engine>(); }

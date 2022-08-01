@@ -51,6 +51,8 @@ class mt19937_random_engine
 
     uint64_t operator()();
 
+    uint64_t pick() const { return state_[index_]; };
+
   private:
     constexpr void init(uint64_t seed)
     {
@@ -74,6 +76,8 @@ class linear_random_engine
 
     void update_seed(uint64_t seed);
     uint64_t operator()();
+
+    uint64_t pick() const { return seed_; };
 
   private:
     uint64_t seed_;

@@ -122,7 +122,7 @@ void string::remove_n(size_t index, size_t chars)
         buf = stack_.get_buffer();
         stack_.set_count(new_count);
     }
-    memcpy(buf + index, buf + end_index, new_count - index);
+    memmove(buf + index, buf + end_index, new_count - index);
     buf[new_count] = 0;
 }
 
