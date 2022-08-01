@@ -280,12 +280,6 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
     int level_;
 
     node_t *node_;
-    /// an array likes  [
-    ///  node_level 1
-    ///  node_level 2
-    ///  node_level 3
-    ///  node_level 4 root
-    /// ]
     RDENG engine_;
     Allocator *allocator_;
 
