@@ -231,7 +231,7 @@ template <typename P, typename hash_func> class base_hash_map
                 auto cur_node = it;
                 it = it->next;
 
-                if (likely(prev))
+                if (prev) [[likely]]
                     prev->next = it;
                 else
                     table[hash].next = it;
@@ -368,7 +368,6 @@ template <typename P, typename hash_func> class base_hash_map
         rhs.table = nullptr;
         rhs.count = 0;
         rhs.cap = 0;
-        rhs.load_factor = 0;
     }
 
   public:
@@ -413,7 +412,7 @@ class hash_map : public base_hash_map<hash_map_pair<K, V>, hash_func>
     using Parent::Parent;
     bool get(const K &key, V &v)
     {
-        if (unlikely(this->count == 0))
+        if (this->count == 0) [[unlikely]]
         {
             return 0;
         }
@@ -430,7 +429,7 @@ class hash_map : public base_hash_map<hash_map_pair<K, V>, hash_func>
     }
     V *get_ptr(const K &key)
     {
-        if (unlikely(this->count == 0))
+        if (this->count == 0) [[unlikely]]
         {
             return 0;
         }

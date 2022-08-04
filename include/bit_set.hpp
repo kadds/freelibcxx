@@ -11,6 +11,7 @@ class const_bit_set_operation
 {
     using BaseType = size_t;
     static constexpr size_t BITS = sizeof(BaseType) * 8;
+    static_assert(sizeof(size_t) == sizeof(long));
 
   public:
     const_bit_set_operation(const BaseType *ptr)
@@ -59,11 +60,11 @@ class bit_set_operation
         data_[idx] &= ~((1UL << bits));
     }
 
-    void xor_bit(size_t index)
+    void xor_bit(size_t index, bool val)
     {
         auto idx = index / BITS;
         auto bits = index % BITS;
-        data_[idx] ^= ((1UL << bits));
+        data_[idx] ^= (((size_t)(val) << bits));
     }
 
     /// set [0, element_count) to 1
@@ -151,6 +152,11 @@ class bit_set_operation
     {                                                                                                                  \
         bit_set_operation op(data_);                                                                                   \
         op.set_all(index, count);                                                                                      \
+    }                                                                                                                  \
+    void xor_bit(size_t index, bool val)                                                                               \
+    {                                                                                                                  \
+        bit_set_operation op(data_);                                                                                   \
+        op.xor_bit(index, val);                                                                                        \
     }                                                                                                                  \
     void reset_bit(size_t index)                                                                                       \
     {                                                                                                                  \

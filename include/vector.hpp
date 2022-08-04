@@ -2,6 +2,7 @@
 #include "allocator.hpp"
 #include "assert.hpp"
 #include "iterator.hpp"
+#include "utils.hpp"
 #include <utility>
 
 namespace freelibcxx
@@ -306,7 +307,6 @@ template <typename E> class base_vector
             allocator_->deallocate(buffer_);
             buffer_ = nullptr;
             cap_ = 0;
-            // size = 0;
         }
     }
 
@@ -339,7 +339,7 @@ template <typename E> class base_vector
         E *new_buffer = reinterpret_cast<E *>(allocator_->allocate(element_count * sizeof(E), alignof(E)));
         if (buffer_ != nullptr)
         {
-            size_t c = element_count > count_ ? count_ : element_count;
+            size_t c = min(element_count, count_);
 
             for (size_t i = 0; i < c; i++)
                 new (new_buffer + i) E(std::move(buffer_[i]));

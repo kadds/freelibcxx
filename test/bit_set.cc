@@ -31,6 +31,14 @@ TEST_CASE("set/clean biset", "bitset")
 
     s.set_bit(513);
     REQUIRE(s[513]);
+
+    s.xor_bit(513, 0);
+    REQUIRE(s[513]);
+    REQUIRE(s[512]);
+
+    s.xor_bit(513, 1);
+    REQUIRE(!s[513]);
+    REQUIRE(s[512]);
 }
 
 TEST_CASE("set/clean all bitset", "bitset")
