@@ -223,7 +223,7 @@ template <size_t ElementCount> class bit_set_inplace
     static_assert(is_pow_of_2(ElementCount));
 
   public:
-    bit_set_inplace() = default;
+    bit_set_inplace() { memset(data_, 0, sizeof(data_)); };
     bit_set_inplace(size_t map) { set_to(map); }
 
     ~bit_set_inplace() = default;
