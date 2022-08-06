@@ -112,7 +112,7 @@ template <typename T> class circular_buffer
 
         size_t offset = read_off_;
 
-        for (size_t i = 0; i < len; i++)
+        for (size_t i = 0; i < size; i++)
         {
             if (offset >= length_) [[unlikely]]
             {

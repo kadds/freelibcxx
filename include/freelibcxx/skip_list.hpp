@@ -212,9 +212,7 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
         return iterator(nullptr);
     }
 
-    iterator lower_find(const E &element) const { return lower_find(element, std::greater_equal<E>()); }
-
-    template <typename CMP = std::greater_equal<E>> iterator lower_find(const E &element, CMP cmp) const
+    iterator lower_find(const E &element) const
     {
         node_t *node = node_;
         int cur_level = level_;
@@ -222,14 +220,14 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
         while (cur_level >= 0)
         {
             auto next = node->level_[cur_level].next_;
-            while (next && !cmp(next->element_, element))
+            while (next && next->element_ < element)
             {
                 node = next;
                 next = node->level_[cur_level].next_;
             }
             cur_level--;
         }
-        if (cmp(node->element_, element))
+        if (node->element_ == element)
         {
             return iterator(node);
         }
@@ -239,9 +237,7 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
         }
     }
 
-    iterator upper_find(const E &element) const { return upper_find(element, std::greater<E>()); }
-
-    template <typename CMP = std::greater<E>> iterator upper_find(const E &element, CMP cmp) const
+    iterator upper_find(const E &element) const
     {
         node_t *node = node_;
         int cur_level = level_;
@@ -249,21 +245,18 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
         while (cur_level >= 0)
         {
             auto next = node->level_[cur_level].next_;
-            while (next && !cmp(next->element_, element))
+            while (next && next->element_ <= element)
             {
                 node = next;
                 next = node->level_[cur_level].next_;
             }
             cur_level--;
         }
-        if (cmp(node->element_, element))
-        {
-            return iterator(node);
-        }
-        else
+        if (node != nullptr)
         {
             return iterator(node->level_[0].next_);
         }
+        return end();
     }
 
     bool has(const E &element) const { return find(element) != end(); }
