@@ -68,7 +68,8 @@ add_library(freelibcxx STATIC ${HPPS} ${SRCS})
 target_include_directories(freelibcxx PUBLIC include)
 
 set_target_properties(freelibcxx PROPERTIES LINKER_LANGUAGE CXX)
-set_target_properties(freelibcxx PROPERTIES COMPILE_FLAGS "-Wunreachable-code -pipe -std=c++20 -Wno-pedantic \
+set_target_properties(freelibcxx PROPERTIES COMPILE_FLAGS 
+    "-Wunreachable-code -pipe -std=c++20 -Wno-pedantic \
     -fno-rtti -fno-asynchronous-unwind-tables -fno-common \
     -fno-plt -fno-exceptions -fno-pic -fpie -Wall \
     -ffreestanding -fno-stack-protector -fno-builtin ${TEST_FLAGS}")
@@ -94,9 +95,11 @@ if (FREELIBCXX_TEST)
     add_test_execute(random "test/random.cc"  ${TEST_FLAGS} ${TEST_LIBS})
     add_test_execute(bit_set "test/bit_set.cc"  ${TEST_FLAGS} ${TEST_LIBS})
     add_test_execute(hashmap "test/hashmap.cc"  ${TEST_FLAGS} ${TEST_LIBS})
+    add_test_execute(formatter "test/formatter.cc"  ${TEST_FLAGS} ${TEST_LIBS})
     set(ALLSRC "test/vector.cc" "test/string.cc" "test/list.cc"
         "test/slist.cc" "test/circular_buffer.cc" "test/trunk_buffer.cc" 
-        "test/skip_list.cc" "test/random.cc" "test/bit_set.cc" "test/hashmap.cc")
+        "test/skip_list.cc" "test/random.cc" "test/bit_set.cc" "test/hashmap.cc"
+        "test/formatter.cc")
     
     MESSAGE("flags: ${TEST_FLAGS}")
     add_test_execute(all_in_one "${ALLSRC}" ${TEST_FLAGS} ${TEST_LIBS})
@@ -130,6 +133,4 @@ if (FREELIBCXX_TEST)
                 -output-dir=${TARGET_NAME}_report_llvm --ignore-filename-regex='3rd.*' -format="html"
             DEPENDS ${TARGET_NAME}-ccov-preprocessing)
     endif()
-
-
 endif(FREELIBCXX_TEST)

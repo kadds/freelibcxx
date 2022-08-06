@@ -1,7 +1,8 @@
 #pragma once
 
 #include "allocator.hpp"
-#include <cstring>
+#include "extern.hpp"
+#include "utils.hpp"
 
 class LibAllocator : public freelibcxx::Allocator
 {

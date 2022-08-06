@@ -1,4 +1,5 @@
 #include "string.hpp"
+#include "allocator.hpp"
 
 namespace freelibcxx
 {
@@ -154,6 +155,34 @@ size_t string::select_capacity(size_t capacity)
 {
     size_t new_cap = capacity;
     return new_cap;
+}
+
+void string::resize(size_t size)
+{
+    if (is_sso())
+    {
+        if (size > stack_.get_cap())
+        {
+            auto allocator = stack_.get_allocator();
+            auto cap = select_capacity(size);
+            auto buf = allocator->allocate(cap, 1);
+
+            memcpy(buf, stack_.get_buffer(), stack_.get_count());
+
+            heap_.set_allocator(allocator);
+            heap_.set_buffer(reinterpret_cast<char *>(buf));
+            heap_.set_count(size);
+            heap_.set_cap(cap);
+        }
+        else
+        {
+            stack_.set_count(size);
+        }
+    }
+    else
+    {
+        heap_.set_count(size);
+    }
 }
 
 void string::free()

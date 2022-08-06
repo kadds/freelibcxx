@@ -1,4 +1,5 @@
 #pragma once
+#include "algorithm.hpp"
 #include "allocator.hpp"
 #include "assert.hpp"
 #include "iterator.hpp"

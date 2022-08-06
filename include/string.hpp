@@ -2,6 +2,7 @@
 #include "allocator.hpp"
 #include "assert.hpp"
 #include "extern.hpp"
+#include "formatter.hpp"
 #include "iterator.hpp"
 #include "vector.hpp"
 #include <utility>
@@ -10,44 +11,45 @@ namespace freelibcxx
 {
 
 class string;
+template <typename T> class span;
 
 template <typename CE> class base_string_view
 {
   private:
     struct value_fn
     {
-        CE operator()(CE val) { return val; }
+        CE *operator()(CE *val) { return val; }
     };
     struct prev_fn
     {
-        CE operator()(CE val) { return val - 1; }
+        CE *operator()(CE *val) { return val - 1; }
     };
     struct next_fn
     {
-        CE operator()(CE val) { return val + 1; }
+        CE *operator()(CE *val) { return val + 1; }
     };
 
   public:
-    using iterator = base_bidirectional_iterator<CE, value_fn, prev_fn, next_fn>;
+    using iterator = base_bidirectional_iterator<CE *, value_fn, prev_fn, next_fn>;
 
     base_string_view()
         : ptr_(nullptr)
         , len_(0)
     {
     }
-    base_string_view(CE ptr, size_t len)
+    base_string_view(CE *ptr, size_t len)
         : ptr_(ptr)
         , len_(len)
     {
     }
     // from cstr
-    base_string_view(CE ptr)
+    base_string_view(CE *ptr)
         : ptr_(ptr)
         , len_(strlen(ptr))
     {
     }
 
-    CE data() { return ptr_; }
+    CE *data() { return ptr_; }
 
     string to_string(Allocator *allocator);
 
@@ -63,8 +65,8 @@ template <typename CE> class base_string_view
 
     template <size_t N> size_t split_n(char c, base_string_view views[N])
     {
-        CE p = ptr_;
-        CE prev = p;
+        CE *p = ptr_;
+        CE *prev = p;
         size_t cnt = 0;
         for (size_t i = 0; i < len_ && cnt < N; i++)
         {
@@ -88,15 +90,15 @@ template <typename CE> class base_string_view
     vector<base_string_view<CE>> split(char c, Allocator *vec_allocator)
     {
         vector<base_string_view<CE>> vec(vec_allocator);
-        CE p = ptr_;
-        CE prev = p;
+        CE *p = ptr_;
+        CE *prev = p;
         for (size_t i = 0; i < len_; i++)
         {
             if (*p == c)
             {
                 if (prev < p)
                 {
-                    vec.push_back(base_string_view(prev, p - prev));
+                    vec.push_back(base_string_view<CE>(prev, p - prev));
                 }
                 prev = p + 1;
             }
@@ -104,6 +106,27 @@ template <typename CE> class base_string_view
         }
         vec.push_back(base_string_view(prev, p - prev));
         return vec;
+    }
+
+    optional<int> to_int(int base = 10)
+    {
+        auto s = span();
+        return str2int(s, base);
+    }
+    optional<unsigned int> to_uint(int base = 10)
+    {
+        auto s = span();
+        return str2uint(s, base);
+    }
+    optional<int64_t> to_int64(int base = 10)
+    {
+        auto s = span();
+        return str2int64(s, base);
+    }
+    optional<uint64_t> to_uint64(int base = 10)
+    {
+        auto s = span();
+        return str2uint64(s, base);
     }
 
     bool operator==(const string &rhs) const;
@@ -130,13 +153,15 @@ template <typename CE> class base_string_view
     bool operator!=(const base_string_view &rhs) const { return !operator==(rhs); }
     bool operator!=(const char *rhs) const { return !operator==(rhs); }
 
+    span<CE> span() const { return ::freelibcxx::span(ptr_, len_); }
+
   private:
-    CE ptr_;
+    CE *ptr_;
     size_t len_;
 };
 
-using string_view = base_string_view<char *>;
-using const_string_view = base_string_view<const char *>;
+using string_view = base_string_view<char>;
+using const_string_view = base_string_view<const char>;
 
 class string
 {
@@ -311,6 +336,9 @@ class string
     bool operator!=(const string &rhs) const { return !operator==(rhs); }
     bool operator!=(const char *rhs) const { return !operator==(rhs); }
 
+    void clear() { resize(0); }
+    void resize(size_t size);
+
   private:
     // little endian machine
     //      0x0
@@ -413,6 +441,50 @@ template <typename CE> string base_string_view<CE>::to_string(Allocator *allocat
 template <typename CE> bool base_string_view<CE>::operator==(const string &rhs) const
 {
     return operator==()(rhs.view());
+}
+
+inline string &operator<<(string &s, int val)
+{
+    char buf[16];
+    auto len = int2str(span(buf, sizeof(buf) - 1), val);
+    if (len.has_value())
+    {
+        s.append_buffer(buf, len.value());
+    }
+    return s;
+}
+
+inline string &operator<<(string &s, unsigned int val)
+{
+    char buf[16];
+    auto len = uint2str(span(buf, sizeof(buf) - 1), val);
+    if (len.has_value())
+    {
+        s.append_buffer(buf, len.value());
+    }
+    return s;
+}
+
+inline string &operator<<(string &s, uint64_t val)
+{
+    char buf[32];
+    auto len = uint642str(span(buf, sizeof(buf) - 1), val);
+    if (len.has_value())
+    {
+        s.append_buffer(buf, len.value());
+    }
+    return s;
+}
+
+inline string &operator<<(string &s, int64_t val)
+{
+    char buf[32];
+    auto len = int642str(span(buf, sizeof(buf) - 1), val);
+    if (len.has_value())
+    {
+        s.append_buffer(buf, len.value());
+    }
+    return s;
 }
 
 } // namespace freelibcxx

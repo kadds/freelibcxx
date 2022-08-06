@@ -1,6 +1,12 @@
 #pragma once
 #include "assert.hpp"
 #include <cstddef>
+#include <cstdint>
+#include <new>
+
+extern "C" void *aligned_alloc(size_t alignment, size_t size) noexcept;
+extern "C" void free(void *ptr) noexcept;
+
 #include <utility>
 namespace freelibcxx
 {
@@ -62,6 +68,13 @@ class Allocator
         }
         deallocate(t);
     }
+};
+
+class DefaultAllocator : public Allocator
+{
+  public:
+    void *allocate(size_t size, size_t align) noexcept override { return aligned_alloc(align, size); }
+    void deallocate(void *ptr) noexcept override { free(ptr); }
 };
 
 } // namespace freelibcxx

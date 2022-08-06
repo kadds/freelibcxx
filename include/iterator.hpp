@@ -1,6 +1,7 @@
 #pragma once
 #include <concepts>
 #include <cstddef>
+#include <type_traits>
 
 namespace freelibcxx
 {
@@ -14,14 +15,14 @@ concept for_each_container = requires(T t)
 template <typename T>
 concept forward_iterator = requires(T t)
 {
-    t.next();
+    ++t;
 };
 
 template <typename T>
 concept bidirectional_iterator = requires(T t)
 {
-    t.next();
-    t.prev();
+    ++t;
+    --t;
 };
 
 template <typename T>
@@ -49,6 +50,11 @@ class base_bidirectional_iterator
 
   public:
     explicit base_bidirectional_iterator(C c)
+        : current(c)
+    {
+    }
+    template <typename CV>
+    requires std::is_pointer_v<CV> base_bidirectional_iterator(C c)
         : current(c)
     {
     }
