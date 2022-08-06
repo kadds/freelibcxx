@@ -1,5 +1,5 @@
 #include "common.hpp"
-#include "singly_linked_list.hpp"
+#include "freelibcxx/singly_linked_list.hpp"
 #include <catch2/catch_test_macros.hpp>
 
 using namespace freelibcxx;

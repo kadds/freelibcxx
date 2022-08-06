@@ -1,7 +1,7 @@
 #pragma once
-#include "allocator.hpp"
-#include "extern.hpp"
-#include "utils.hpp"
+#include "freelibcxx/allocator.hpp"
+#include "freelibcxx/extern.hpp"
+#include "freelibcxx/utils.hpp"
 #include <cstddef>
 
 namespace freelibcxx

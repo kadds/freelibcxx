@@ -1,6 +1,6 @@
 #pragma once
-#include "optional.hpp"
-#include "span.hpp"
+#include "freelibcxx/optional.hpp"
+#include "freelibcxx/span.hpp"
 #include <cstddef>
 #include <cstdint>
 
@@ -20,4 +20,4 @@ optional<int> uint642str(span<char> buffer, uint64_t val, int base = 10);
 
 optional<int> double2str(span<char> buffer, double val, int precision);
 optional<double> str2double(const char *ptr, char **end);
-}
+} // namespace freelibcxx

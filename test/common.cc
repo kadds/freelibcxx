@@ -1,5 +1,5 @@
 #include "common.hpp"
-#include "assert.hpp"
+#include "freelibcxx/assert.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <exception>
 #include <sstream>

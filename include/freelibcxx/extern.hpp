@@ -9,4 +9,6 @@ extern "C" void *memset(void *dest, int val, size_t n) noexcept;
 
 extern "C" size_t strlen(const char *s) noexcept;
 
+extern "C" char *strcpy(char *dest, const char *src) noexcept;
+
 extern "C" int memcmp(const void *a, const void *b, size_t size) noexcept;

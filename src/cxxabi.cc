@@ -1,6 +1,6 @@
 #include <cstddef>
 
-[[gnu::weak]] extern "C" void __cxa_pure_virtual()
+extern "C" void __cxa_pure_virtual()
 {
     while (1)
         ;

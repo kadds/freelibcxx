@@ -1,8 +1,8 @@
-#include "formatter.hpp"
-#include "algorithm.hpp"
-#include "assert.hpp"
-#include "optional.hpp"
-#include "utils.hpp"
+#include "freelibcxx/formatter.hpp"
+#include "freelibcxx/algorithm.hpp"
+#include "freelibcxx/assert.hpp"
+#include "freelibcxx/optional.hpp"
+#include "freelibcxx/utils.hpp"
 #include <limits>
 
 namespace freelibcxx
@@ -108,7 +108,7 @@ optional<int64_t> str2int64(span<const char> in, int base)
 optional<uint64_t> str2uint64(span<const char> in, int base)
 {
     CXXASSERT(base >= 2 && base <= 32);
-    int64_t result = 0;
+    uint64_t result = 0;
     auto ptr = in.get();
     auto size = in.size();
     if (size == 0)
@@ -117,11 +117,11 @@ optional<uint64_t> str2uint64(span<const char> in, int base)
     }
     for (; size > 0; size--, ptr++)
     {
-        int64_t tmp_result = result;
+        uint64_t tmp_result = result;
         char c = *ptr;
         if (c >= '0' && c <= '9')
         {
-            tmp_result = tmp_result * base - (c - '0');
+            tmp_result = tmp_result * base + (c - '0');
         }
         else
         {
@@ -135,9 +135,9 @@ optional<uint64_t> str2uint64(span<const char> in, int base)
             {
                 return nullopt;
             }
-            tmp_result = tmp_result * base - (index + 10);
+            tmp_result = tmp_result * base + (index + 10);
         }
-        if (tmp_result > result)
+        if (tmp_result < result)
         {
             return nullopt;
         }
@@ -175,7 +175,7 @@ optional<int> int642str(span<char> buffer, int64_t val, int base)
         }
         else
         {
-            ptr[offset] = 'a' + rest;
+            ptr[offset] = 'a' + rest - 10;
         }
 
         offset++;
@@ -220,7 +220,7 @@ optional<int> uint642str(span<char> buffer, uint64_t val, int base)
         }
         else
         {
-            ptr[offset] = 'a' + rest;
+            ptr[offset] = 'a' + rest - 10;
         }
 
         offset++;

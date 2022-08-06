@@ -1,4 +1,4 @@
-#include "hash.hpp"
+#include "freelibcxx/hash.hpp"
 namespace freelibcxx
 {
 uint32_t djb_hash(const char *str)

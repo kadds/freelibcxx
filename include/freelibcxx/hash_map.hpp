@@ -1,45 +1,12 @@
 #pragma once
-#include "allocator.hpp"
-#include "hash.hpp"
-#include "iterator.hpp"
+#include "freelibcxx/allocator.hpp"
+#include "freelibcxx/hash.hpp"
+#include "freelibcxx/iterator.hpp"
 #include <type_traits>
 #include <utility>
 
 namespace freelibcxx
 {
-
-template <typename T> struct member_hash
-{
-    size_t operator()(const T &t) { return t.hash(); }
-};
-
-template <> struct member_hash<unsigned long>
-{
-    size_t operator()(const unsigned long &t) { return murmur_hash2_64(&t, sizeof(unsigned long), 0); }
-};
-
-template <> struct member_hash<unsigned int>
-{
-    size_t operator()(const unsigned int &t)
-    {
-        size_t k = t;
-        return murmur_hash2_64(&k, sizeof(k), 0);
-    }
-};
-
-template <> struct member_hash<long>
-{
-    size_t operator()(const long &t) { return murmur_hash2_64(&t, sizeof(unsigned long), 0); }
-};
-
-template <> struct member_hash<int>
-{
-    size_t operator()(const int &t)
-    {
-        size_t k = t;
-        return murmur_hash2_64(&k, sizeof(k), 0);
-    }
-};
 
 template <typename K> struct hash_set_pair
 {
@@ -393,7 +360,7 @@ template <typename P, typename hash_func> class base_hash_map
     };
 };
 
-template <typename K, typename V, typename hash_func = member_hash<K>>
+template <typename K, typename V, typename hash_func = hasher<K>>
 class hash_map : public base_hash_map<hash_map_pair<K, V>, hash_func>
 {
   private:
@@ -445,8 +412,7 @@ class hash_map : public base_hash_map<hash_map_pair<K, V>, hash_func>
     }
 };
 
-template <typename K, typename hash_func = member_hash<K>>
-class hash_set : public base_hash_map<hash_set_pair<K>, hash_func>
+template <typename K, typename hash_func = hasher<K>> class hash_set : public base_hash_map<hash_set_pair<K>, hash_func>
 {
   private:
     using Parent = base_hash_map<hash_set_pair<K>, hash_func>;

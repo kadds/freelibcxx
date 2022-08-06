@@ -1,17 +1,18 @@
 #pragma once
-#include "allocator.hpp"
-#include "assert.hpp"
-#include "extern.hpp"
-#include "formatter.hpp"
-#include "iterator.hpp"
-#include "vector.hpp"
+#include "freelibcxx/allocator.hpp"
+#include "freelibcxx/assert.hpp"
+#include "freelibcxx/extern.hpp"
+#include "freelibcxx/formatter.hpp"
+#include "freelibcxx/hash.hpp"
+#include "freelibcxx/iterator.hpp"
+#include "freelibcxx/span.hpp"
+#include "freelibcxx/vector.hpp"
 #include <utility>
 
 namespace freelibcxx
 {
 
 class string;
-template <typename T> class span;
 
 template <typename CE> class base_string_view
 {
@@ -56,6 +57,10 @@ template <typename CE> class base_string_view
     iterator begin() { return iterator(ptr_); }
 
     iterator end() { return iterator(ptr_ + len_); }
+
+    CE &first() { return ptr_[0]; }
+
+    CE &last() { return ptr_[len_ - 1]; }
 
     base_string_view substr(size_t pos, size_t len)
     {
@@ -110,22 +115,22 @@ template <typename CE> class base_string_view
 
     optional<int> to_int(int base = 10)
     {
-        auto s = span();
+        auto s = get_span();
         return str2int(s, base);
     }
     optional<unsigned int> to_uint(int base = 10)
     {
-        auto s = span();
+        auto s = get_span();
         return str2uint(s, base);
     }
     optional<int64_t> to_int64(int base = 10)
     {
-        auto s = span();
+        auto s = get_span();
         return str2int64(s, base);
     }
     optional<uint64_t> to_uint64(int base = 10)
     {
-        auto s = span();
+        auto s = get_span();
         return str2uint64(s, base);
     }
 
@@ -153,7 +158,7 @@ template <typename CE> class base_string_view
     bool operator!=(const base_string_view &rhs) const { return !operator==(rhs); }
     bool operator!=(const char *rhs) const { return !operator==(rhs); }
 
-    span<CE> span() const { return ::freelibcxx::span(ptr_, len_); }
+    span<CE> get_span() const { return ::freelibcxx::span<CE>(ptr_, len_); }
 
   private:
     CE *ptr_;
@@ -486,5 +491,20 @@ inline string &operator<<(string &s, int64_t val)
     }
     return s;
 }
+
+template <> struct hasher<string>
+{
+    size_t operator()(const string &t) { return murmur_hash2_64(t.data(), t.size(), 0); }
+};
+
+template <> struct hasher<string_view>
+{
+    size_t operator()(const string &t) { return murmur_hash2_64(t.data(), t.size(), 0); }
+};
+
+template <> struct hasher<const_string_view>
+{
+    size_t operator()(const string &t) { return murmur_hash2_64(t.data(), t.size(), 0); }
+};
 
 } // namespace freelibcxx

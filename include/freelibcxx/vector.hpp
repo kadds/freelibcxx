@@ -1,8 +1,8 @@
 #pragma once
-#include "algorithm.hpp"
-#include "allocator.hpp"
-#include "assert.hpp"
-#include "iterator.hpp"
+#include "freelibcxx/algorithm.hpp"
+#include "freelibcxx/allocator.hpp"
+#include "freelibcxx/assert.hpp"
+#include "freelibcxx/iterator.hpp"
 #include "utils.hpp"
 #include <utility>
 

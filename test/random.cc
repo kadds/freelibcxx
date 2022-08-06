@@ -1,4 +1,4 @@
-#include "random.hpp"
+#include "freelibcxx/random.hpp"
 #include "catch2/internal/catch_run_context.hpp"
 #include "common.hpp"
 #include <catch2/catch_test_macros.hpp>

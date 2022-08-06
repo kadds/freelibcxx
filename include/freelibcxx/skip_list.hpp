@@ -1,11 +1,9 @@
 #pragma once
-#include "allocator.hpp"
-#include "common.hpp"
-#include "iterator.hpp"
-#include "random.hpp"
+#include "freelibcxx/allocator.hpp"
+#include "freelibcxx/iterator.hpp"
+#include "freelibcxx/random.hpp"
 #include <cstddef>
 #include <functional>
-#include <linux/limits.h>
 #include <utility>
 
 namespace freelibcxx
@@ -138,7 +136,7 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
         while (cur_level >= 0)
         {
             auto next = node->level_[cur_level].next_;
-            while (next && next->element < element)
+            while (next && next->element_ < element)
             {
                 node = next;
                 next = node->level_[cur_level].next_;
@@ -146,7 +144,7 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
             cache_nodes[cur_level] = node;
             cur_level--;
         }
-        auto next = node->level_[0]->next;
+        auto next = node->level_[0].next_;
         if (next == nullptr || next->element_ != element)
         {
             return false;
@@ -155,7 +153,10 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
         // remote nodes each level
         for (int l = level_; l >= 0; l--)
         {
-            cache_nodes[l]->level_[l].next_ = next->level_[l].next_;
+            auto cur = cache_nodes[l]->level_[l].next_;
+            if (cur != nullptr) {
+                cache_nodes[l]->level_[l].next_ = cur->level_[l].next_;
+            }
         }
         next->element_.~E();
         allocator_->Delete(next);
@@ -164,7 +165,17 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
         return true;
     }
 
-    iterator remove(iterator iter) {}
+    iterator remove(iterator iter)
+    {
+        auto next = iter;
+        next++;
+        bool ok = remove(iter.get()->element_);
+        if (ok)
+        {
+            return next;
+        }
+        return iter;
+    }
 
     size_t size() const { return count_; }
 
@@ -172,7 +183,7 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
 
     size_t deep() const { return level_; }
 
-    const E &front() const { return node_->level_[0].next->element_; }
+    const E &front() const { return node_->level_[0].next_->element_; }
 
     iterator begin() const { return iterator(node_->level_[0].next_); }
 
@@ -361,11 +372,11 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
     };
     struct node_t
     {
+        node_t *back_;
         union
         {
             E element_;
         };
-        node_t *back_;
         index_node_t level_[0];
         template <typename... Args>
         node_t(node_t *back, Args &&...args)

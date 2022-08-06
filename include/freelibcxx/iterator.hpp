@@ -121,7 +121,7 @@ class base_forward_iterator
     }
 
   public:
-    C get() { return current; }
+    C &get() { return current; }
 
     auto &operator*() { return *Val()(current); }
     auto operator&() { return Val()(current); }

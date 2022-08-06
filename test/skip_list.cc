@@ -1,4 +1,4 @@
-#include "skip_list.hpp"
+#include "freelibcxx/skip_list.hpp"
 #include "catch2/internal/catch_run_context.hpp"
 #include "common.hpp"
 #include <catch2/catch_test_macros.hpp>
@@ -43,6 +43,11 @@ TEST_CASE("iterator skip list", "skip_list")
             REQUIRE(i == j);
             j++;
         }
+    }
+    SECTION("remove") {
+        skip_list<int> list(&LibAllocatorV, Catch::rngSeed(), {1, 2, 3, 4, 5, 6});
+        auto it = list.find(4);
+        REQUIRE(list.remove(it) == list.find(5));
     }
 }
 

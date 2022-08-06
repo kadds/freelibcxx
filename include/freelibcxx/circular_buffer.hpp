@@ -1,6 +1,6 @@
 #pragma once
-#include "allocator.hpp"
-#include "utils.hpp"
+#include "freelibcxx/allocator.hpp"
+#include "freelibcxx/utils.hpp"
 #include <cstddef>
 
 namespace freelibcxx
@@ -17,11 +17,11 @@ template <typename T> class circular_buffer
 
   public:
     circular_buffer(Allocator *allocator, size_t size)
-        : buffer_(nullptr)
+        : read_off_(0)
+        , buffer_(nullptr)
         , length_(size)
-        , read_off_(0)
-        , write_off_(0)
         , allocator_(allocator)
+        , write_off_(0)
     {
         if (size > 0)
             buffer_ = reinterpret_cast<T *>(allocator->allocate(size * sizeof(T), alignof(T)));
