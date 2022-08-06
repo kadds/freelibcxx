@@ -4,8 +4,8 @@
 #include <cstdint>
 #include <new>
 
-extern "C" void *aligned_alloc(size_t alignment, size_t size) noexcept;
-extern "C" void free(void *ptr) noexcept;
+extern "C" [[gnu::weak]] void *aligned_alloc(size_t alignment, size_t size) noexcept;
+extern "C" [[gnu::weak]] void free(void *ptr) noexcept;
 
 #include <utility>
 namespace freelibcxx
