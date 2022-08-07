@@ -29,9 +29,21 @@ template <typename CE> class base_string_view
     {
         CE *operator()(CE *val) { return val + 1; }
     };
+    struct random_fn
+    {
+        CE *operator[](ssize_t index) { return val_ + index; }
+
+        ssize_t offset_of(CE *val) { return val_ - val; }
+
+        CE *val_;
+        random_fn(CE *val)
+            : val_(val)
+        {
+        }
+    };
 
   public:
-    using iterator = base_bidirectional_iterator<CE *, value_fn, prev_fn, next_fn>;
+    using iterator = base_random_access_iterator<CE *, value_fn, prev_fn, next_fn, random_fn>;
 
     base_string_view()
         : ptr_(nullptr)
@@ -184,12 +196,25 @@ class string
         N operator()(N val) { return val + 1; }
     };
 
+    template <typename N> struct random_fn
+    {
+        N operator[](ssize_t index) { return val_ + index; }
+
+        ssize_t offset_of(N val) { return val_ - val; }
+
+        N val_;
+        random_fn(N val)
+            : val_(val)
+        {
+        }
+    };
+
     using CE = const char *;
     using NE = char *;
 
   public:
-    using const_iterator = base_bidirectional_iterator<CE, value_fn<CE>, prev_fn<CE>, next_fn<CE>>;
-    using iterator = base_bidirectional_iterator<NE, value_fn<NE>, prev_fn<NE>, next_fn<NE>>;
+    using const_iterator = base_random_access_iterator<CE, value_fn<CE>, prev_fn<CE>, next_fn<CE>, random_fn<CE>>;
+    using iterator = base_random_access_iterator<NE, value_fn<NE>, prev_fn<NE>, next_fn<NE>, random_fn<NE>>;
 
     string(const string &rhs) { copy(rhs); }
 
@@ -470,7 +495,7 @@ inline void string::append_buffer(const char *buf, size_t length)
     size_t new_count = count + length;
     char *old_buf = nullptr;
     Allocator *allocator = nullptr;
-    bool is_stack_ = false;
+    bool delete_buf = false;
     if (is_sso()) [[likely]]
     {
         old_buf = stack_.get_buffer();
@@ -478,7 +503,6 @@ inline void string::append_buffer(const char *buf, size_t length)
         {
             // try allocate memory
             // switch to heap_
-            is_stack_ = true;
             allocator = stack_.get_allocator();
         }
         else
@@ -489,7 +513,7 @@ inline void string::append_buffer(const char *buf, size_t length)
             return;
         }
     }
-    else if (heap_.get_cap() > new_count)
+    else if (new_count < heap_.get_cap())
     {
         memcpy(heap_.get_buffer() + count, buf, length);
         heap_.get_buffer()[new_count] = 0;
@@ -500,14 +524,15 @@ inline void string::append_buffer(const char *buf, size_t length)
     {
         old_buf = heap_.get_buffer();
         allocator = heap_.get_allocator();
+        delete_buf = true;
     }
     // append to heap_
     size_t cap = select_capacity(new_count + 1);
-    char *new_buf = reinterpret_cast<char *>(allocator->allocate(cap, 8));
+    char *new_buf = reinterpret_cast<char *>(allocator->allocate(cap, 1));
     memcpy(new_buf, old_buf, count);
     memcpy(new_buf + count, buf, length);
     new_buf[new_count] = 0;
-    if (!is_stack_)
+    if (delete_buf)
     {
         allocator->deallocate(old_buf);
     }
@@ -587,8 +612,12 @@ inline bool string::operator==(const char *rhs) const
 
 inline size_t string::select_capacity(size_t capacity)
 {
-    size_t new_cap = capacity;
-    return new_cap;
+    if (capacity >= (1UL << 24))
+    {
+        capacity *= 2;
+        return capacity;
+    }
+    return capacity == 1 ? 1 : 1UL << (64 - __builtin_clzl(capacity - 1));
 }
 
 inline void string::resize(size_t size)

@@ -30,13 +30,25 @@ template <typename E> class base_vector
     {
         N operator()(N val) { return val + 1; }
     };
+    template <typename N> struct random_fn
+    {
+        N operator[](ssize_t index) { return val_ + index; }
+
+        ssize_t offset_of(N val) { return val_ - val; }
+
+        N val_;
+        random_fn(N val)
+            : val_(val)
+        {
+        }
+    };
 
     using CE = const E *;
     using NE = E *;
 
   public:
-    using const_iterator = base_bidirectional_iterator<CE, value_fn<CE>, prev_fn<CE>, next_fn<CE>>;
-    using iterator = base_bidirectional_iterator<NE, value_fn<NE>, prev_fn<NE>, next_fn<NE>>;
+    using const_iterator = base_random_access_iterator<CE, value_fn<CE>, prev_fn<CE>, next_fn<CE>, random_fn<CE>>;
+    using iterator = base_random_access_iterator<NE, value_fn<NE>, prev_fn<NE>, next_fn<NE>, random_fn<NE>>;
 
     base_vector(Allocator *allocator)
         : buffer_(nullptr)
