@@ -103,22 +103,30 @@ class base_forward_iterator
 
 template <typename C, typename Val, typename Prev, typename Next>
 requires check_fn<Val, C> && check_fn<Prev, C> && check_fn<Next, C>
-class base_bidirectional_iterator : public base_forward_iterator<C, Val, Next>
+class base_bidirectional_iterator
 {
   private:
     C current;
 
   public:
-    using base_forward_iterator<C, Val, Next>::base_forward_iterator;
+    explicit base_bidirectional_iterator(C c)
+        : current(c)
+    {
+    }
 
-    // template <typename CV>
-    // requires std::is_pointer_v<CV>
-    // explicit base_bidirectional_iterator(C c)
-    //     : current(c)
-    // {
-    // }
+    template <typename CV>
+    requires std::is_pointer_v<CV>
+    explicit base_bidirectional_iterator(C c)
+        : current(c)
+    {
+    }
 
   public:
+    C &get() { return current; }
+
+    auto &operator*() { return *Val()(current); }
+    auto operator&() { return Val()(current); }
+    auto operator->() { return Val()(current); }
     base_bidirectional_iterator operator--(int)
     {
         auto old = *this;
@@ -137,26 +145,97 @@ class base_bidirectional_iterator : public base_forward_iterator<C, Val, Next>
         s.current = Prev()(current);
         return s;
     }
+
+    base_bidirectional_iterator operator++(int)
+    {
+        auto old = *this;
+        current = Next()(current);
+        return old;
+    }
+    base_bidirectional_iterator &operator++()
+    {
+        current = Next()(current);
+        return *this;
+    }
+    base_bidirectional_iterator next()
+    {
+        auto s = *this;
+        s.current = Next()(current);
+        return s;
+    }
+
+    bool operator==(const base_bidirectional_iterator &it) const { return current == it.current; }
+
+    bool operator!=(const base_bidirectional_iterator &it) const { return !operator==(it); }
 };
 
 template <typename C, typename Val, typename Prev, typename Next, typename Random>
 requires check_fn<Val, C> && check_fn<Prev, C> && check_fn<Next, C>
-class base_random_access_iterator : public base_bidirectional_iterator<C, Val, Prev, Next>
+class base_random_access_iterator
 {
   private:
     C current;
 
   public:
-    using base_bidirectional_iterator<C, Val, Prev, Next>::base_bidirectional_iterator;
+    explicit base_random_access_iterator(C c)
+        : current(c)
+    {
+    }
 
-    // template <typename CV>
-    // requires std::is_pointer_v<CV>
-    // explicit base_random_access_iterator(C c)
-    //     : current(c)
-    // {
-    // }
+    template <typename CV>
+    requires std::is_pointer_v<CV>
+    explicit base_random_access_iterator(C c)
+        : current(c)
+    {
+    }
 
   public:
+    C &get() { return current; }
+
+    auto &operator*() { return *Val()(current); }
+    auto operator&() { return Val()(current); }
+    auto operator->() { return Val()(current); }
+    base_random_access_iterator operator--(int)
+    {
+        auto old = *this;
+        current = Prev()(current);
+        return old;
+    }
+    base_random_access_iterator &operator--()
+    {
+        current = Prev()(current);
+        return *this;
+    }
+
+    base_random_access_iterator prev()
+    {
+        auto s = *this;
+        s.current = Prev()(current);
+        return s;
+    }
+
+    base_random_access_iterator operator++(int)
+    {
+        auto old = *this;
+        current = Next()(current);
+        return old;
+    }
+    base_random_access_iterator &operator++()
+    {
+        current = Next()(current);
+        return *this;
+    }
+    base_random_access_iterator next()
+    {
+        auto s = *this;
+        s.current = Next()(current);
+        return s;
+    }
+
+    bool operator==(const base_random_access_iterator &it) const { return current == it.current; }
+
+    bool operator!=(const base_random_access_iterator &it) const { return !operator==(it); }
+
     base_random_access_iterator operator+(ssize_t index)
     {
         Random r(current);
