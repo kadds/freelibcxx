@@ -111,7 +111,7 @@ if (FREELIBCXX_TEST)
     if (CMAKE_COMPILER_IS_GNUCXX)
         add_custom_target(${TARGET_NAME}-lcov-preprocessing
             COMMAND $<TARGET_FILE:${TARGET_NAME}>
-            COMMAND lcov -c -d ./ -o ${TARGET_NAME}-init.info
+            COMMAND lcov -c -d ./CMakeFiles/${TARGET_NAME}.dir -o ${TARGET_NAME}-init.info
             DEPENDS ${TARGET_NAME})
         
         add_custom_target(${TARGET_NAME}-lcov
