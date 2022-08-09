@@ -292,16 +292,6 @@ template <typename E> class base_vector
     }
 
   private:
-    size_t select_capacity(size_t capacity)
-    {
-        if (capacity >= (1UL << 24))
-        {
-            capacity *= 2;
-            return capacity;
-        }
-        return next_pow_of_2(capacity);
-    }
-
     void free()
     {
         if (buffer_ != nullptr)

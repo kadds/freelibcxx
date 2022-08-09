@@ -19,6 +19,10 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
     {
         K operator()(N val) { return &val->element_; }
     };
+    template <typename N> struct prev_fn
+    {
+        N operator()(N val) { return val->back_; }
+    };
     template <typename N> struct next_fn
     {
         N operator()(N val) { return val->level_[0].next_; }
@@ -28,8 +32,8 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
     using CE = const list_node *;
 
   public:
-    using const_iterator = base_forward_iterator<CE, value_fn<CE, const E *>, next_fn<CE>>;
-    using iterator = base_forward_iterator<NE, value_fn<NE, E *>, next_fn<NE>>;
+    using const_iterator = base_bidirectional_iterator<CE, value_fn<CE, const E *>, prev_fn<CE>, next_fn<CE>>;
+    using iterator = base_bidirectional_iterator<NE, value_fn<NE, E *>, prev_fn<CE>, next_fn<NE>>;
     /// return -1 walk left
     /// 1 walk right
     /// 0 stop

@@ -1,6 +1,10 @@
+#include "catch2/internal/catch_run_context.hpp"
 #include "common.hpp"
 #include "freelibcxx/hash_map.hpp"
+#include "freelibcxx/optional.hpp"
+#include "freelibcxx/string.hpp"
 #include <catch2/catch_test_macros.hpp>
+#include <random>
 #include <unordered_map>
 
 using namespace freelibcxx;
@@ -19,17 +23,25 @@ TEST_CASE("insert hashmap", "hashmap")
     map.insert(3, 5);
     map.insert(4, 6);
     REQUIRE(map.size() == 4);
-    int v;
-    REQUIRE(map.get(1, v));
-    REQUIRE(v == 1);
-    REQUIRE(map.get(2, v));
-    REQUIRE(v == -1);
-    REQUIRE(map.get(3, v));
-    REQUIRE(v == 5);
-    REQUIRE(map.get(4, v));
-    REQUIRE(v == 6);
-    REQUIRE(!map.get(5, v));
-    REQUIRE(v == 6);
+    optional<int> v;
+    v = map.get(1);
+    REQUIRE(v.has_value());
+    REQUIRE(v.value() == 1);
+
+    v = map.get(2);
+    REQUIRE(v.has_value());
+    REQUIRE(v.value() == -1);
+
+    v = map.get(3);
+    REQUIRE(v.has_value());
+    REQUIRE(v.value() == 5);
+
+    v = map.get(4);
+    REQUIRE(v.has_value());
+    REQUIRE(v.value() == 6);
+
+    v = map.get(6);
+    REQUIRE(!v.has_value());
 }
 
 TEST_CASE("remove hashmap", "hashmap")
@@ -111,4 +123,31 @@ TEST_CASE("hashset", "hashmap")
     REQUIRE(map.has(2));
     REQUIRE(map.has(3));
     REQUIRE(!map.has(4));
+}
+
+TEST_CASE("string key hashmap", "hashmap")
+{
+    hash_map<freelibcxx::string, int> map(&LibAllocatorV);
+    std::unordered_map<std::string, int> m;
+    std::mt19937_64 rng(Catch::rngSeed());
+
+    for (int i = 0; i < 10; i++)
+    {
+        std::string ss;
+        for (int j = 0; j < 100; j++)
+        {
+            ss += 'a' + rng() % 26;
+        }
+
+        int v = rng();
+        m[ss] = v;
+        map.insert(freelibcxx::string(&LibAllocatorV, ss.c_str(), ss.size()), v);
+    }
+
+    for (auto item : m)
+    {
+        auto val = map.get(const_string_view(item.first.c_str(), item.first.size()));
+        REQUIRE(val.has_value());
+        REQUIRE(val.value() == item.second);
+    }
 }

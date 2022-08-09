@@ -28,7 +28,7 @@ static constexpr inline char tolower(char c)
 {
     if (c >= 'A' && c <= 'Z')
     {
-        return c - ('Z' - 'A');
+        return c + ('z' - 'Z');
     }
     return c;
 }
@@ -37,7 +37,7 @@ static constexpr inline char toupper(char c)
 {
     if (c >= 'a' && c <= 'z')
     {
-        return c - ('z' - 'a');
+        return c - ('z' - 'Z');
     }
     return c;
 }

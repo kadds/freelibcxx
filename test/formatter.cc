@@ -81,3 +81,43 @@ TEST_CASE("from int", "formatter")
     ss = {"2147483647"};
     REQUIRE(ss.to_int().value_or(0) == 2147483647);
 }
+
+TEST_CASE("format hex", "formatter")
+{
+    string ss(&LibAllocatorV);
+    ss.from_int64(9, 16);
+    REQUIRE(ss == "9");
+    ss.clear();
+
+    ss.from_int64(10, 16);
+    REQUIRE(ss == "a");
+    ss.clear();
+
+    ss.from_int64(254, 16);
+    REQUIRE(ss == "fe");
+    ss.clear();
+
+    ss.from_uint(257, 16);
+    REQUIRE(ss == "101");
+    ss.clear();
+}
+
+TEST_CASE("from hex", "formatter")
+{
+    const_string_view ss;
+    ss = {"f"};
+    REQUIRE(ss.to_int(16).value_or(0) == 15);
+
+    ss = {"fe"};
+    REQUIRE(ss.to_int(16).value_or(0) == 254);
+
+    ss = {"FE"};
+    REQUIRE(ss.to_int(16).value_or(0) == 254);
+
+    ss = {"101"};
+    REQUIRE(ss.to_int(16).value_or(0) == 257);
+
+    // invalid input
+    ss = {"fg"};
+    REQUIRE(ss.to_int(16).value_or(0) == 0);
+}

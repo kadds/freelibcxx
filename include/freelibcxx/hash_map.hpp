@@ -1,7 +1,10 @@
 #pragma once
+#include "freelibcxx/algorithm.hpp"
 #include "freelibcxx/allocator.hpp"
 #include "freelibcxx/hash.hpp"
 #include "freelibcxx/iterator.hpp"
+#include "freelibcxx/optional.hpp"
+#include "freelibcxx/utils.hpp"
 #include <type_traits>
 #include <utility>
 
@@ -99,15 +102,11 @@ template <typename P, typename hash_func> class base_hash_map
     using iterator = base_forward_iterator<holder, value_fn<holder, P *>, next_fn<holder>>;
 
     base_hash_map(Allocator *allocator, size_t capacity)
-        : count(0)
-        , table(nullptr)
-        , allocator(allocator)
+        : size_(0)
+        , table_(nullptr)
+        , cap_(0)
+        , allocator_(allocator)
     {
-        cap = select_capacity(capacity);
-        if (cap > 0)
-        {
-            table = allocator->NewArray<entry>(cap);
-        }
     }
 
     base_hash_map(Allocator *allocator, std::initializer_list<P> il)
@@ -152,13 +151,13 @@ template <typename P, typename hash_func> class base_hash_map
 
     template <typename... Args> iterator insert(Args &&...args)
     {
-        check_capacity(count + 1);
-        node_t *node = allocator->New<node_t>(nullptr, std::forward<Args>(args)...);
+        ensure(size_ + 1);
+        node_t *node = allocator_->New<node_t>(nullptr, std::forward<Args>(args)...);
         size_t hash = hash_key(node->content.key);
-        node->next = table[hash].next;
-        table[hash].next = node;
-        count++;
-        return iterator(holder(&table[hash], table + cap, table[hash].next));
+        node->next = table_[hash].next;
+        table_[hash].next = node;
+        size_++;
+        return iterator(holder(&table_[hash], table_ + cap_, table_[hash].next));
     }
 
     bool has(const K &key)
@@ -169,13 +168,13 @@ template <typename P, typename hash_func> class base_hash_map
 
     int key_count(const K &key)
     {
-        if (count == 0) [[unlikely]]
+        if (size_ == 0) [[unlikely]]
         {
             return 0;
         }
         size_t hash = hash_key(key);
         int i = 0;
-        for (auto it = table[hash].next; it != nullptr; it = it->next)
+        for (auto it = table_[hash].next; it != nullptr; it = it->next)
         {
             if (it->content.key == key)
                 i++;
@@ -185,13 +184,13 @@ template <typename P, typename hash_func> class base_hash_map
 
     void remove(const K &key)
     {
-        if (count == 0) [[unlikely]]
+        if (size_ == 0) [[unlikely]]
         {
             return;
         }
         size_t hash = hash_key(key);
         node_t *prev = nullptr;
-        for (auto it = table[hash].next; it != nullptr;)
+        for (auto it = table_[hash].next; it != nullptr;)
         {
             if (it->content.key == key)
             {
@@ -201,9 +200,8 @@ template <typename P, typename hash_func> class base_hash_map
                 if (prev) [[likely]]
                     prev->next = it;
                 else
-                    table[hash].next = it;
-                allocator->Delete<>(cur_node);
-                check_capacity(count--);
+                    table_[hash].next = it;
+                allocator_->Delete<>(cur_node);
                 return;
             }
             prev = it;
@@ -211,112 +209,106 @@ template <typename P, typename hash_func> class base_hash_map
         }
     }
 
-    size_t size() const { return count; }
+    size_t size() const { return size_; }
 
     void clear()
     {
-        for (size_t i = 0; i < cap; i++)
+        for (size_t i = 0; i < cap_; i++)
         {
-            for (auto it = table[i].next; it != nullptr;)
+            for (auto it = table_[i].next; it != nullptr;)
             {
                 auto n = it;
                 it = it->next;
-                allocator->Delete<>(n);
+                allocator_->Delete<>(n);
             }
-            table[i].next = nullptr;
+            table_[i].next = nullptr;
         }
-        count = 0;
+        size_ = 0;
     }
 
-    size_t capacity() const { return cap; }
+    size_t capacity() const { return cap_; }
 
     iterator begin() const
     {
-        auto table = this->table;
-        if (table == nullptr || count == 0)
+        auto table = this->table_;
+        if (table == nullptr || size_ == 0)
         {
             return end();
         }
-        auto node = this->table->next;
+        auto end = this->table_ + cap_;
+        auto node = this->table_->next;
         if (!node)
         {
-            while (!table->next && table != (this->table + cap))
+            while (!table->next && table != end)
             {
                 table++;
             }
             node = table->next;
         }
-        return iterator(holder(table, this->table + cap, node));
+        return iterator(holder(table, end, node));
     }
 
-    iterator end() const { return iterator(holder(table + cap, table + cap, nullptr)); }
+    iterator end() const { return iterator(holder(table_ + cap_, table_ + cap_, nullptr)); }
 
   protected:
-    size_t count;
-    entry *table;
-    // fix point 12345.67
-    size_t cap;
-    Allocator *allocator;
+    size_t size_;
+    entry *table_;
+    size_t cap_;
+    Allocator *allocator_;
 
     void recapacity(size_t new_capacity)
     {
-        if (new_capacity == cap) [[unlikely]]
+        if (new_capacity == cap_) [[unlikely]]
         {
             return;
         }
-        auto new_table = allocator->NewArray<entry>(new_capacity);
-        for (size_t i = 0; i < cap; i++)
+        auto new_table = allocator_->NewArray<entry>(new_capacity);
+        if (table_ != nullptr)
         {
-            for (auto it = table[i].next; it != nullptr;)
+            for (size_t i = 0; i < cap_; i++)
             {
-                size_t hash = hash_func()(it->content.key) % new_capacity;
-                auto next_it = it->next;
-                auto next_node = new_table[hash].next;
-                new_table[hash].next = it;
-                it->next = next_node;
-                it = next_it;
+                for (auto it = table_[i].next; it != nullptr;)
+                {
+                    size_t hash = hash_func()(it->content.key) % new_capacity;
+                    auto next_it = it->next;
+                    auto next_node = new_table[hash].next;
+                    new_table[hash].next = it;
+                    it->next = next_node;
+                    it = next_it;
+                }
             }
+            allocator_->DeleteArray(cap_, table_);
         }
-        if (table != nullptr)
-        {
-            allocator->DeleteArray(cap, table);
-        }
-        table = new_table;
-        cap = new_capacity;
+        table_ = new_table;
+        cap_ = new_capacity;
     }
 
-    size_t select_capacity(size_t capacity) { return capacity; }
+    size_t hash_key(const K &key) { return hash_func()(key) % cap_; }
 
-    size_t hash_key(const K &key) { return hash_func()(key) % cap; }
-
-    void check_capacity(size_t new_count)
+    void ensure(size_t new_count)
     {
-        if (cap == 0 && new_count > 0)
+        if (new_count >= cap_ * 75 / 100)
         {
-            recapacity(2);
-        }
-        else if (new_count >= cap * 75 / 100)
-        {
-            recapacity(cap * 2);
+            recapacity(select_capacity(max(cap_ + 1, new_count)));
         }
     }
 
     void free()
     {
-        if (table != nullptr)
+        if (table_ != nullptr)
         {
             clear();
-            allocator->DeleteArray(cap, table);
-            table = nullptr;
+            allocator_->DeleteArray(cap_, table_);
+            table_ = nullptr;
         }
     }
 
     void copy(const base_hash_map &rhs)
     {
-        allocator = rhs.allocator;
-        cap = select_capacity(rhs.count);
-        count = 0;
-        table = allocator->NewArray<entry>(cap);
+        allocator_ = rhs.allocator_;
+        cap_ = select_capacity(rhs.size_);
+        size_ = 0;
+        table_ = allocator_->NewArray<entry>(cap_);
         auto iter = rhs.begin();
         while (iter != rhs.end())
         {
@@ -328,13 +320,13 @@ template <typename P, typename hash_func> class base_hash_map
 
     void move(base_hash_map &&rhs)
     {
-        allocator = rhs.allocator;
-        table = rhs.table;
-        count = rhs.count;
-        cap = rhs.cap;
-        rhs.table = nullptr;
-        rhs.count = 0;
-        rhs.cap = 0;
+        allocator_ = rhs.allocator_;
+        table_ = rhs.table_;
+        size_ = rhs.size_;
+        cap_ = rhs.cap_;
+        rhs.table_ = nullptr;
+        rhs.size_ = 0;
+        rhs.cap_ = 0;
     }
 
   public:
@@ -377,24 +369,26 @@ class hash_map : public base_hash_map<hash_map_pair<K, V>, hash_func>
 
   public:
     using Parent::Parent;
-    bool get(const K &key, V &v)
+
+    optional<V> get(const K &key)
     {
-        if (this->count == 0) [[unlikely]]
+        if (this->size_ == 0) [[unlikely]]
         {
             return 0;
         }
         size_t hash = this->hash_key(key);
-        for (auto it = this->table[hash].next; it != nullptr; it = it->next)
+        for (auto it = this->table_[hash].next; it != nullptr; it = it->next)
         {
             if (it->content.key == key)
             {
-                v = it->content.value;
-                return true;
+                return it->content.value;
             }
         }
-        return false;
+        return nullopt;
     }
-    V *get_ptr(const K &key)
+
+    // danger!!!
+    optional<V &> get_ref(const K &key)
     {
         if (this->count == 0) [[unlikely]]
         {
@@ -405,10 +399,10 @@ class hash_map : public base_hash_map<hash_map_pair<K, V>, hash_func>
         {
             if (it->content.key == key)
             {
-                return &it->content.value;
+                return it->content.value;
             }
         }
-        return nullptr;
+        return nullopt;
     }
 };
 

@@ -235,6 +235,10 @@ class string
         return s;
     }
 
+    string(const_string_view view) { init_lit(view.data()); }
+
+    string(string_view view) { init_lit(view.data()); }
+
     ~string() { free(); }
 
     string &operator=(const string &rhs);
@@ -391,35 +395,35 @@ class string
 
     void insert_at(size_t index, const char *buf, size_t len);
 
-    void from_int(int val)
+    void from_int(int val, int base = 10)
     {
         char buf[32];
         ::freelibcxx::span<char> span(buf, sizeof(buf));
-        int len = int2str(span, val).value_or(0);
+        int len = int2str(span, val, base).value_or(0);
         append_buffer(buf, len);
     }
 
-    void from_uint(unsigned int val)
+    void from_uint(unsigned int val, int base = 10)
     {
         char buf[32];
         ::freelibcxx::span<char> span(buf, sizeof(buf));
-        int len = uint2str(span, val).value_or(0);
+        int len = uint2str(span, val, base).value_or(0);
         append_buffer(buf, len);
     }
 
-    void from_int64(int64_t val)
+    void from_int64(int64_t val, int base = 10)
     {
         char buf[48];
         ::freelibcxx::span<char> span(buf, sizeof(buf));
-        int len = int642str(span, val).value_or(0);
+        int len = int642str(span, val, base).value_or(0);
         append_buffer(buf, len);
     }
 
-    void from_uint64(uint64_t val)
+    void from_uint64(uint64_t val, int base = 10)
     {
         char buf[48];
         ::freelibcxx::span<char> span(buf, sizeof(buf));
-        int len = uint642str(span, val).value_or(0);
+        int len = uint642str(span, val, base).value_or(0);
         append_buffer(buf, len);
     }
 
@@ -508,8 +512,6 @@ class string
     static_assert(sizeof(stack_t) == sizeof(heap_t));
 
   private:
-    size_t select_capacity(size_t capacity);
-
     void free();
 
     void copy(const string &rhs);
@@ -617,16 +619,6 @@ inline bool string::operator==(const char *rhs) const
         return false;
     }
     return memcmp(data(), rhs, size()) == 0;
-}
-
-inline size_t string::select_capacity(size_t capacity)
-{
-    if (capacity >= (1UL << 24))
-    {
-        capacity *= 2;
-        return capacity;
-    }
-    return next_pow_of_2(capacity);
 }
 
 inline void string::resize(size_t size)
@@ -768,11 +760,9 @@ inline void string::copy(const string &rhs)
         }
         else
         {
-            cap = select_capacity(cap);
-            const char *s = rhs.heap_.buffer();
-            char *p = reinterpret_cast<char *>(a->allocate(cap, 8));
-            memcpy(p, s, size);
-            p[size] = 0;
+            stack_.init();
+            stack_.set_allocator(a);
+            append_buffer(rhs.heap_.buffer(), size);
         }
         heap_.set_cap(cap);
     }
