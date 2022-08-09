@@ -70,11 +70,11 @@ inline optional<int64_t> str2int64(span<const char> in, int base)
     }
     for (; size > 0; size--, ptr++)
     {
-        int64_t tmp_result = result;
+        int64_t num = result;
         char c = *ptr;
         if (c >= '0' && c <= '9')
         {
-            tmp_result = tmp_result * base - (c - '0');
+            num = num * base - (c - '0');
         }
         else
         {
@@ -101,14 +101,14 @@ inline optional<int64_t> str2int64(span<const char> in, int base)
                 {
                     return nullopt;
                 }
-                tmp_result = tmp_result * base - (index + 10);
+                num = num * base - (index + 10);
             }
         }
-        if (tmp_result > result)
+        if (num > result)
         {
             return nullopt;
         }
-        result = tmp_result;
+        result = num;
     }
     if (fac == 1)
     {
@@ -134,11 +134,11 @@ inline optional<uint64_t> str2uint64(span<const char> in, int base)
     }
     for (; size > 0; size--, ptr++)
     {
-        uint64_t tmp_result = result;
+        uint64_t num = result;
         char c = *ptr;
         if (c >= '0' && c <= '9')
         {
-            tmp_result = tmp_result * base + (c - '0');
+            num = num * base + (c - '0');
         }
         else
         {
@@ -152,13 +152,13 @@ inline optional<uint64_t> str2uint64(span<const char> in, int base)
             {
                 return nullopt;
             }
-            tmp_result = tmp_result * base + (index + 10);
+            num = num * base + (index + 10);
         }
-        if (tmp_result < result)
+        if (num < result)
         {
             return nullopt;
         }
-        result = tmp_result;
+        result = num;
     }
     return result;
 }

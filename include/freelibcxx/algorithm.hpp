@@ -20,4 +20,6 @@ void reverse(T begin, T end)
         begin++;
     }
 }
+static constexpr inline size_t next_pow_of_2(size_t t) { return t <= 1 ? 1 : 1UL << (64 - __builtin_clzl(t - 1)); }
+
 } // namespace freelibcxx

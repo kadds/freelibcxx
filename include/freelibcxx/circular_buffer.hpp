@@ -9,7 +9,9 @@ namespace freelibcxx
 template <typename T> class circular_buffer
 {
   private:
+    // TODO: Prevent false sharing
     size_t read_off_;
+
     T *buffer_;
     size_t length_;
     Allocator *allocator_;
@@ -23,16 +25,19 @@ template <typename T> class circular_buffer
         , allocator_(allocator)
         , write_off_(0)
     {
-        if (size > 0)
-            buffer_ = reinterpret_cast<T *>(allocator->allocate(size * sizeof(T), alignof(T)));
-        else
-            buffer_ = nullptr;
+        if (size == 0)
+        {
+            size = 1;
+        }
+        buffer_ = reinterpret_cast<T *>(allocator->allocate(size * sizeof(T), alignof(T)));
     }
 
     ~circular_buffer()
     {
-        if (buffer_ != nullptr)
+        if (buffer_ != nullptr) [[likely]]
+        {
             allocator_->deallocate(buffer_);
+        }
     }
 
     circular_buffer &operator=(const circular_buffer &cb) = delete;

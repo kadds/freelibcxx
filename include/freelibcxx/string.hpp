@@ -1,4 +1,5 @@
 #pragma once
+#include "freelibcxx/algorithm.hpp"
 #include "freelibcxx/allocator.hpp"
 #include "freelibcxx/assert.hpp"
 #include "freelibcxx/extern.hpp"
@@ -7,6 +8,7 @@
 #include "freelibcxx/iterator.hpp"
 #include "freelibcxx/span.hpp"
 #include "freelibcxx/vector.hpp"
+#include <cstddef>
 #include <utility>
 
 namespace freelibcxx
@@ -21,19 +23,11 @@ template <typename CE> class base_string_view
     {
         CE *operator()(CE *val) { return val; }
     };
-    struct prev_fn
-    {
-        CE *operator()(CE *val) { return val - 1; }
-    };
-    struct next_fn
-    {
-        CE *operator()(CE *val) { return val + 1; }
-    };
     struct random_fn
     {
-        CE *operator[](ssize_t index) { return val_ + index; }
+        CE *operator[](ptrdiff_t index) { return val_ + index; }
 
-        ssize_t offset_of(CE *val) { return val_ - val; }
+        ptrdiff_t offset_of(CE *val) { return val_ - val; }
 
         CE *val_;
         random_fn(CE *val)
@@ -43,7 +37,7 @@ template <typename CE> class base_string_view
     };
 
   public:
-    using iterator = base_random_access_iterator<CE *, value_fn, prev_fn, next_fn, random_fn>;
+    using iterator = base_random_access_iterator<CE *, value_fn, random_fn>;
 
     base_string_view()
         : ptr_(nullptr)
@@ -127,22 +121,22 @@ template <typename CE> class base_string_view
 
     optional<int> to_int(int base = 10)
     {
-        auto s = get_span();
+        auto s = span();
         return str2int(s, base);
     }
     optional<unsigned int> to_uint(int base = 10)
     {
-        auto s = get_span();
+        auto s = span();
         return str2uint(s, base);
     }
     optional<int64_t> to_int64(int base = 10)
     {
-        auto s = get_span();
+        auto s = span();
         return str2int64(s, base);
     }
     optional<uint64_t> to_uint64(int base = 10)
     {
-        auto s = get_span();
+        auto s = span();
         return str2uint64(s, base);
     }
 
@@ -170,7 +164,19 @@ template <typename CE> class base_string_view
     bool operator!=(const base_string_view &rhs) const { return !operator==(rhs); }
     bool operator!=(const char *rhs) const { return !operator==(rhs); }
 
-    span<CE> get_span() const { return ::freelibcxx::span<CE>(ptr_, len_); }
+    char operator[](size_t index) const
+    {
+        CXXASSERT(index < len_);
+        return ptr_[len_];
+    }
+
+    char &operator[](size_t index)
+    {
+        CXXASSERT(index < len_);
+        return ptr_[len_];
+    }
+
+    ::freelibcxx::span<CE> span() const { return ::freelibcxx::span<CE>(ptr_, len_); }
 
   private:
     CE *ptr_;
@@ -187,20 +193,13 @@ class string
     {
         N operator()(N val) { return val; }
     };
-    template <typename N> struct prev_fn
-    {
-        N operator()(N val) { return val - 1; }
-    };
-    template <typename N> struct next_fn
-    {
-        N operator()(N val) { return val + 1; }
-    };
+
 
     template <typename N> struct random_fn
     {
-        N operator[](ssize_t index) { return val_ + index; }
+        N operator[](ptrdiff_t index) { return val_ + index; }
 
-        ssize_t offset_of(N val) { return val_ - val; }
+        ptrdiff_t offset_of(N val) { return val_ - val; }
 
         N val_;
         random_fn(N val)
@@ -213,8 +212,8 @@ class string
     using NE = char *;
 
   public:
-    using const_iterator = base_random_access_iterator<CE, value_fn<CE>, prev_fn<CE>, next_fn<CE>, random_fn<CE>>;
-    using iterator = base_random_access_iterator<NE, value_fn<NE>, prev_fn<NE>, next_fn<NE>, random_fn<NE>>;
+    using const_iterator = base_random_access_iterator<CE, value_fn<CE>, random_fn<CE>>;
+    using iterator = base_random_access_iterator<NE, value_fn<NE>,  random_fn<NE>>;
 
     string(const string &rhs) { copy(rhs); }
 
@@ -246,11 +245,11 @@ class string
     {
         if (is_sso()) [[likely]]
         {
-            return stack_.get_count();
+            return stack_.size();
         }
         else
         {
-            return heap_.get_count();
+            return heap_.size();
         }
     }
 
@@ -258,11 +257,11 @@ class string
     {
         if (is_sso()) [[likely]]
         {
-            return stack_.get_cap();
+            return stack_.cap();
         }
         else
         {
-            return heap_.get_cap();
+            return heap_.cap();
         }
     }
 
@@ -280,6 +279,18 @@ class string
         return string_view(data(), size());
     }
 
+    ::freelibcxx::span<const char> span() const
+    {
+        CXXASSERT(!is_shared());
+        return ::freelibcxx::span(data(), size());
+    }
+
+    ::freelibcxx::span<char> span()
+    {
+        CXXASSERT(!is_shared());
+        return ::freelibcxx::span(data(), size());
+    }
+
     const_string_view view() const { return const_string_view(data(), size()); }
 
     bool is_shared() const
@@ -290,7 +301,7 @@ class string
         }
         else
         {
-            return heap_.get_allocator() == nullptr;
+            return heap_.allocator() == nullptr;
         }
     }
 
@@ -299,11 +310,11 @@ class string
         CXXASSERT(!is_shared());
         if (is_sso()) [[likely]]
         {
-            return stack_.get_buffer();
+            return stack_.buffer();
         }
         else
         {
-            return heap_.get_buffer();
+            return heap_.buffer();
         }
     }
     const char *cdata() const { return data(); }
@@ -312,11 +323,11 @@ class string
     {
         if (is_sso()) [[likely]]
         {
-            return stack_.get_buffer();
+            return stack_.buffer();
         }
         else
         {
-            return heap_.get_buffer();
+            return heap_.buffer();
         }
     }
 
@@ -359,6 +370,11 @@ class string
         append_buffer(rhs, (size_t)strlen(rhs));
         return *this;
     }
+    string &operator+=(char ch)
+    {
+        append_buffer(&ch, 1);
+        return *this;
+    }
 
     bool operator==(const string &rhs) const;
     bool operator==(const char *rhs) const;
@@ -368,6 +384,44 @@ class string
 
     void clear() { resize(0); }
     void resize(size_t size);
+
+    void ensure(size_t cap);
+
+    void insert(iterator iter, const char *buf, size_t len) { insert_at(iter - begin(), buf, len); }
+
+    void insert_at(size_t index, const char *buf, size_t len);
+
+    void from_int(int val)
+    {
+        char buf[32];
+        ::freelibcxx::span<char> span(buf, sizeof(buf));
+        int len = int2str(span, val).value_or(0);
+        append_buffer(buf, len);
+    }
+
+    void from_uint(unsigned int val)
+    {
+        char buf[32];
+        ::freelibcxx::span<char> span(buf, sizeof(buf));
+        int len = uint2str(span, val).value_or(0);
+        append_buffer(buf, len);
+    }
+
+    void from_int64(int64_t val)
+    {
+        char buf[48];
+        ::freelibcxx::span<char> span(buf, sizeof(buf));
+        int len = int642str(span, val).value_or(0);
+        append_buffer(buf, len);
+    }
+
+    void from_uint64(uint64_t val)
+    {
+        char buf[48];
+        ::freelibcxx::span<char> span(buf, sizeof(buf));
+        int len = uint642str(span, val).value_or(0);
+        append_buffer(buf, len);
+    }
 
   private:
     // little endian machine
@@ -388,55 +442,62 @@ class string
 
     struct heap_t
     {
-        size_t count;
-        char *buffer;
-        size_t cap;
-        Allocator *allocator;
-        size_t get_count() const { return count & ((1UL << 63) - 1); }
-        void set_count(size_t c) { count = (c & ((1UL << 63) - 1)) | (count & (1UL << 63)); };
-        size_t get_cap() const { return cap & ((1UL << 63) - 1); }
-        void set_cap(size_t c) { cap = (c & ((1UL << 63) - 1)) | (cap & (1UL << 63)); }
-        char *get_buffer() { return buffer; }
-        const char *get_buffer() const { return buffer; }
-        void set_buffer(char *b) { buffer = b; }
+        size_t size_;
+        char *buffer_;
+        size_t cap_;
+        Allocator *allocator_;
+        size_t size() const { return size_; }
+        void set_size(size_t c) { size_ = c; };
 
-        Allocator *get_allocator() const { return allocator; }
-        void set_allocator(Allocator *alc)
+        size_t cap() const { return cap_; }
+        void set_cap(size_t c) { cap_ = c; }
+
+        char *buffer() { return buffer_; }
+        const char *buffer() const { return buffer_; }
+        void set_buffer(char *b) { buffer_ = b; }
+
+        Allocator *allocator() const { return allocator_; }
+        void set_allocator(Allocator *a)
         {
-            CXXASSERT((reinterpret_cast<size_t>(alc) & 0x1) == 0); // bit 0
-            allocator = alc;
+            CXXASSERT((reinterpret_cast<uintptr_t>(a) & 0x1) == 0); // bit 0
+            allocator_ = a;
         }
         void init()
         {
-            count = 0;
-            buffer = nullptr;
-            cap = 0;
-            allocator = 0;
+            size_ = 0;
+            buffer_ = nullptr;
+            cap_ = 0;
+            allocator_ = 0;
         }
     };
 
     struct stack_t
     {
-        std::byte data[24];
-        Allocator *allocator;
+        char data_[24];
+        Allocator *allocator_;
 
       public:
-        size_t get_count() const { return get_cap() - static_cast<size_t>(data[23]); }
-        void set_count(size_t c) { data[23] = static_cast<std::byte>(get_cap() - c); }
-        size_t get_cap() const { return 23; }
-        char *get_buffer() { return reinterpret_cast<char *>(data); }
-        const char *get_buffer() const { return reinterpret_cast<const char *>(data); }
+        size_t size() const { return cap() - static_cast<uint8_t>(data_[23]); }
+        void set_size(size_t c) { data_[23] = cap() - c; }
+        size_t cap() const { return 23; }
+        char *buffer() { return data_; }
+        const char *buffer() const { return data_; }
 
-        Allocator *get_allocator() const
+        Allocator *allocator() const
         {
-            return reinterpret_cast<Allocator *>(reinterpret_cast<size_t>(allocator) & ~0x1);
+            return reinterpret_cast<Allocator *>(reinterpret_cast<uintptr_t>(allocator_) & ~0x1);
         }
         void set_allocator(Allocator *alc)
         {
-            allocator = reinterpret_cast<Allocator *>(reinterpret_cast<size_t>(alc) | 0x1);
+            allocator_ = reinterpret_cast<Allocator *>(reinterpret_cast<uintptr_t>(alc) | 0x1);
         }
 
-        bool is_stack() const { return reinterpret_cast<size_t>(allocator) & 0x1; }
+        bool is_stack() const { return reinterpret_cast<uintptr_t>(allocator_) & 0x1; }
+        void init()
+        {
+            allocator_ = 0;
+            set_size(0);
+        }
     };
     union
     {
@@ -466,9 +527,9 @@ class string
 inline string::string(Allocator *allocator)
 {
     heap_.init();
-    stack_.set_count(0);
+    stack_.set_size(0);
     stack_.set_allocator(allocator);
-    stack_.get_buffer()[0] = 0;
+    stack_.buffer()[0] = 0;
 }
 inline string &string::operator=(const string &rhs)
 {
@@ -488,59 +549,7 @@ inline string &string::operator=(string &&rhs)
     return *this;
 }
 
-inline void string::append_buffer(const char *buf, size_t length)
-{
-    CXXASSERT(!is_shared());
-    size_t count = size();
-    size_t new_count = count + length;
-    char *old_buf = nullptr;
-    Allocator *allocator = nullptr;
-    bool delete_buf = false;
-    if (is_sso()) [[likely]]
-    {
-        old_buf = stack_.get_buffer();
-        if (new_count >= stack_.get_cap())
-        {
-            // try allocate memory
-            // switch to heap_
-            allocator = stack_.get_allocator();
-        }
-        else
-        {
-            memcpy(old_buf + count, buf, length);
-            old_buf[new_count] = 0;
-            stack_.set_count(new_count);
-            return;
-        }
-    }
-    else if (new_count < heap_.get_cap())
-    {
-        memcpy(heap_.get_buffer() + count, buf, length);
-        heap_.get_buffer()[new_count] = 0;
-        heap_.set_count(new_count);
-        return;
-    }
-    else
-    {
-        old_buf = heap_.get_buffer();
-        allocator = heap_.get_allocator();
-        delete_buf = true;
-    }
-    // append to heap_
-    size_t cap = select_capacity(new_count + 1);
-    char *new_buf = reinterpret_cast<char *>(allocator->allocate(cap, 1));
-    memcpy(new_buf, old_buf, count);
-    memcpy(new_buf + count, buf, length);
-    new_buf[new_count] = 0;
-    if (delete_buf)
-    {
-        allocator->deallocate(old_buf);
-    }
-    heap_.set_allocator(allocator);
-    heap_.set_cap(cap);
-    heap_.set_count(new_count);
-    heap_.set_buffer(new_buf);
-}
+inline void string::append_buffer(const char *buf, size_t length) { insert_at(size(), buf, length); }
 
 inline void string::push_back(char ch) { append_buffer(&ch, 1); }
 
@@ -565,25 +574,25 @@ inline char string::pop_front()
 inline void string::remove_n(size_t index, size_t chars)
 {
     CXXASSERT(!is_shared());
-    size_t count = size();
-    CXXASSERT(count >= chars);
-    size_t new_count = count - chars;
+    size_t s = size();
+    CXXASSERT(s >= chars);
+    size_t new_size = s - chars;
     size_t end_index = index + chars;
 
     char *buf = nullptr;
     if (!is_sso())
     {
         // heap_
-        buf = heap_.get_buffer();
-        heap_.set_count(new_count);
+        buf = heap_.buffer();
+        heap_.set_size(new_size);
     }
     else
     {
-        buf = stack_.get_buffer();
-        stack_.set_count(new_count);
+        buf = stack_.buffer();
+        stack_.set_size(new_size);
     }
-    memmove(buf + index, buf + end_index, new_count - index);
-    buf[new_count] = 0;
+    memmove(buf + index, buf + end_index, new_size - index);
+    buf[new_size] = 0;
 }
 
 inline bool string::operator==(const string &rhs) const
@@ -617,34 +626,106 @@ inline size_t string::select_capacity(size_t capacity)
         capacity *= 2;
         return capacity;
     }
-    return capacity == 1 ? 1 : 1UL << (64 - __builtin_clzl(capacity - 1));
+    return next_pow_of_2(capacity);
 }
 
 inline void string::resize(size_t size)
 {
+    ensure(size);
+    size_t s;
+    char *buf;
+
     if (is_sso())
     {
-        if (size > stack_.get_cap())
-        {
-            auto allocator = stack_.get_allocator();
-            auto cap = select_capacity(size);
-            auto buf = allocator->allocate(cap, 1);
-
-            memcpy(buf, stack_.get_buffer(), stack_.get_count());
-
-            heap_.set_allocator(allocator);
-            heap_.set_buffer(reinterpret_cast<char *>(buf));
-            heap_.set_count(size);
-            heap_.set_cap(cap);
-        }
-        else
-        {
-            stack_.set_count(size);
-        }
+        s = stack_.size();
+        buf = stack_.buffer();
     }
     else
     {
-        heap_.set_count(size);
+        s = heap_.size();
+        buf = heap_.buffer();
+    }
+    if (size > s)
+    {
+        memset(buf + s, 0, size - s);
+    }
+
+    if (is_sso())
+    {
+        stack_.set_size(size);
+    }
+    else
+    {
+        heap_.set_size(size);
+    }
+}
+
+inline void string::insert_at(size_t index, const char *buf, size_t len)
+{
+    size_t s = size();
+    size_t total_size = s + len;
+    CXXASSERT(total_size >= s);
+    CXXASSERT(total_size >= len);
+    CXXASSERT(index <= s);
+
+    ensure(total_size);
+    char *b;
+    if (is_sso()) [[likely]]
+    {
+        b = stack_.buffer();
+    }
+    else
+    {
+        b = heap_.buffer();
+    }
+    memmove(b + index + len, b + index, s - index);
+    memcpy(b + index, buf, len);
+    b[total_size] = 0;
+    if (is_sso()) [[likely]]
+    {
+        stack_.set_size(total_size);
+    }
+    else
+    {
+        heap_.set_size(total_size);
+    }
+}
+
+inline void string::ensure(size_t cap)
+{
+    cap = select_capacity(cap);
+    if (is_sso()) [[likely]]
+    {
+        if (cap < stack_.cap())
+        {
+            return;
+        }
+        auto size = stack_.size();
+        auto allocator = stack_.allocator();
+        auto buf = allocator->allocate(cap, 1);
+
+        memcpy(buf, stack_.buffer(), size);
+
+        heap_.set_allocator(allocator);
+        heap_.set_buffer(reinterpret_cast<char *>(buf));
+        heap_.set_size(size);
+        heap_.set_cap(cap);
+    }
+    else
+    {
+        if (cap < heap_.cap())
+        {
+            return;
+        }
+        auto allocator = heap_.allocator();
+        auto buf = allocator->allocate(cap, 1);
+        auto old_buf = heap_.buffer();
+        memcpy(buf, old_buf, heap_.size());
+
+        heap_.set_buffer(reinterpret_cast<char *>(buf));
+        heap_.set_cap(cap);
+
+        allocator->deallocate(old_buf);
     }
 }
 
@@ -652,18 +733,18 @@ inline void string::free()
 {
     if (is_sso()) [[likely]]
     {
-        stack_.set_count(0);
-        stack_.get_buffer()[0] = 0;
+        stack_.set_size(0);
+        stack_.buffer()[0] = 0;
     }
-    else if (heap_.get_buffer() != nullptr)
+    else if (heap_.buffer() != nullptr)
     {
-        auto allocator = heap_.get_allocator();
+        auto allocator = heap_.allocator();
         if (allocator != nullptr)
         {
-            allocator->deallocate(heap_.get_buffer());
+            allocator->deallocate(heap_.buffer());
         }
         heap_.set_buffer(nullptr);
-        heap_.set_count(0);
+        heap_.set_size(0);
         heap_.set_cap(0);
     }
 }
@@ -676,19 +757,19 @@ inline void string::copy(const string &rhs)
     }
     else
     {
-        auto a = rhs.heap_.get_allocator();
-        size_t size = rhs.heap_.get_count();
-        size_t cap = rhs.heap_.get_cap();
+        auto a = rhs.heap_.allocator();
+        size_t size = rhs.heap_.size();
+        size_t cap = rhs.heap_.cap();
         heap_.set_allocator(a);
-        heap_.set_count(size);
+        heap_.set_size(size);
         if (a == nullptr) [[unlikely]] // shared string
         {
-            heap_.set_buffer(const_cast<char *>(rhs.heap_.get_buffer()));
+            heap_.set_buffer(const_cast<char *>(rhs.heap_.buffer()));
         }
         else
         {
             cap = select_capacity(cap);
-            const char *s = rhs.heap_.get_buffer();
+            const char *s = rhs.heap_.buffer();
             char *p = reinterpret_cast<char *>(a->allocate(cap, 8));
             memcpy(p, s, size);
             p[size] = 0;
@@ -702,41 +783,26 @@ inline void string::move(string &&rhs)
     if (rhs.is_sso()) [[likely]]
     {
         this->stack_ = rhs.stack_;
-        rhs.stack_.set_count(0);
-        rhs.stack_.get_buffer()[0] = 0; // end \0
+        rhs.stack_.set_size(0);
+        rhs.stack_.buffer()[0] = 0; // end \0
     }
     else
     {
         this->heap_ = rhs.heap_;
-        rhs.heap_.set_count(0);
+        rhs.heap_.set_size(0);
         rhs.heap_.set_buffer(nullptr);
         rhs.heap_.set_cap(0);
     }
 }
 inline void string::init(Allocator *allocator, const char *str, int len)
 {
-    heap_.init();
     if (len < 0)
         len = strlen(str);
-    if ((size_t)len >= stack_.get_cap())
-    {
-        heap_.set_allocator(allocator);
-        // go to heap_
-        size_t cap = select_capacity(len + 1);
-        char *buf = reinterpret_cast<char *>(allocator->allocate(cap, 8));
-        memcpy(buf, str, len);
-        buf[len] = 0; // end \0
-        heap_.set_count(len);
-        heap_.set_cap(cap);
-        heap_.set_buffer(buf);
-    }
-    else
-    {
-        stack_.set_allocator(allocator);
-        stack_.set_count(len);
-        memcpy(stack_.get_buffer(), str, len);
-        stack_.get_buffer()[len] = 0;
-    }
+
+    stack_.init();
+    stack_.set_allocator(allocator);
+
+    append_buffer(str, len);
 }
 
 inline void string::init_lit(const char *str)
@@ -744,7 +810,7 @@ inline void string::init_lit(const char *str)
     heap_.init();
     size_t l = strlen(str);
     heap_.set_allocator(nullptr);
-    heap_.set_count(l);
+    heap_.set_size(l);
     heap_.set_cap(l + 1);
     // readonly string
     heap_.set_buffer(const_cast<char *>(str));

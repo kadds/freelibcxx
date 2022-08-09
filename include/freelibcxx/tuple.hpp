@@ -9,3 +9,4 @@ namespace detail
 
 template <typename... Args> using tuple = std::tuple<Args...>;
 } // namespace freelibcxx
+} // namespace freelibcxx

@@ -1,13 +1,32 @@
 #pragma once
 #include "freelibcxx/assert.hpp"
+#include "freelibcxx/iterator.hpp"
 #include "freelibcxx/utils.hpp"
 #include <cstddef>
 #include <type_traits>
+
 namespace freelibcxx
 {
 template <typename T> class span
 {
     template <typename U> friend class span;
+
+    struct value_fn
+    {
+        T *operator()(T *val) { return val; }
+    };
+    struct random_fn
+    {
+        T *operator[](ptrdiff_t index) { return val_ + index; }
+
+        ptrdiff_t offset_of(T *val) { return val_ - val; }
+
+        T *val_;
+        random_fn(T *val)
+            : val_(val)
+        {
+        }
+    };
 
   public:
     span()
@@ -54,7 +73,9 @@ template <typename T> class span
     size_t size() const { return size_; }
     T *get() const { return ptr_; }
 
-    char &operator[](size_t index) { return ptr_[index]; }
+    T &operator[](size_t index) { return ptr_[index]; }
+
+    T operator[](size_t index) const { return ptr_[index]; }
 
   private:
     T *ptr_;

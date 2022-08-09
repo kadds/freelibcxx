@@ -37,6 +37,14 @@ TEST_CASE("append to string", "string")
     string ss2(&LibAllocatorV, "base");
     ss2 += "123098";
     REQUIRE(ss2 == "base123098");
+    ss2 += '1';
+    REQUIRE(ss2 == "base1230981");
+
+    ss2.insert_at(2, "u", 1);
+    REQUIRE(ss2 == "bause1230981");
+
+    ss2.insert_at(12, "uv", 2);
+    REQUIRE(ss2 == "bause1230981uv");
 }
 
 TEST_CASE("copy string", "string")

@@ -4,6 +4,7 @@
 #include "freelibcxx/assert.hpp"
 #include "freelibcxx/iterator.hpp"
 #include "utils.hpp"
+#include <cstddef>
 #include <utility>
 
 namespace freelibcxx
@@ -22,19 +23,12 @@ template <typename E> class base_vector
     {
         N operator()(N val) { return val; }
     };
-    template <typename N> struct prev_fn
-    {
-        N operator()(N val) { return val - 1; }
-    };
-    template <typename N> struct next_fn
-    {
-        N operator()(N val) { return val + 1; }
-    };
+
     template <typename N> struct random_fn
     {
-        N operator[](ssize_t index) { return val_ + index; }
+        N operator[](ptrdiff_t index) { return val_ + index; }
 
-        ssize_t offset_of(N val) { return val_ - val; }
+        ptrdiff_t offset_of(N val) { return val_ - val; }
 
         N val_;
         random_fn(N val)
@@ -47,8 +41,8 @@ template <typename E> class base_vector
     using NE = E *;
 
   public:
-    using const_iterator = base_random_access_iterator<CE, value_fn<CE>, prev_fn<CE>, next_fn<CE>, random_fn<CE>>;
-    using iterator = base_random_access_iterator<NE, value_fn<NE>, prev_fn<NE>, next_fn<NE>, random_fn<NE>>;
+    using const_iterator = base_random_access_iterator<CE, value_fn<CE>, random_fn<CE>>;
+    using iterator = base_random_access_iterator<NE, value_fn<NE>, random_fn<NE>>;
 
     base_vector(Allocator *allocator)
         : buffer_(nullptr)
@@ -97,7 +91,7 @@ template <typename E> class base_vector
 
     template <typename... Args> iterator push_back(Args &&...args)
     {
-        check_capacity(count_ + 1);
+        ensure(count_ + 1);
         new (buffer_ + count_) E(std::forward<Args>(args)...);
         count_++;
         return iterator(buffer_ + count_ - 1);
@@ -151,7 +145,7 @@ template <typename E> class base_vector
     template <typename... Args> iterator insert_at(size_t index, Args &&...args)
     {
         CXXASSERT(index <= count_);
-        check_capacity(count_ + 1);
+        ensure(count_ + 1);
         if (count_ > 0) [[likely]]
         {
             new (buffer_ + count_) E(std::move(buffer_[count_ - 1]));
@@ -182,7 +176,7 @@ template <typename E> class base_vector
 
         buffer_[count_ - 1].~E();
 
-        check_capacity(count_ - 1);
+        ensure(count_ - 1);
         count_--;
         return iterator(&buffer_[index]);
     }
@@ -236,14 +230,6 @@ template <typename E> class base_vector
         count_ = element_count_;
     }
 
-    void ensure(size_t size)
-    {
-        if (size > cap_)
-        {
-            recapacity(size);
-        }
-    }
-
     void shrink(size_t element_count)
     {
         if (element_count >= count_) [[unlikely]]
@@ -279,7 +265,7 @@ template <typename E> class base_vector
         for (size_t i = 1; i <= rm_cnt; i++)
             buffer_[count_ - i].~E();
 
-        check_capacity(count_ - rm_cnt);
+        ensure(count_ - rm_cnt);
         count_ -= rm_cnt;
     }
 
@@ -297,19 +283,23 @@ template <typename E> class base_vector
 
     const E *data() const { return buffer_; }
 
-  private:
-    void check_capacity(size_t new_count)
+    void ensure(size_t new_cap)
     {
-        if (cap_ == 0 && new_count > 0) [[unlikely]]
-            recapacity(2);
-        else if (new_count > cap_) [[unlikely]]
+        if (new_cap > cap_)
         {
-            size_t x = cap_ * 3 / 2;
-            if (x < new_count)
-                x = new_count;
-
-            recapacity(x);
+            recapacity(select_capacity(new_cap));
         }
+    }
+
+  private:
+    size_t select_capacity(size_t capacity)
+    {
+        if (capacity >= (1UL << 24))
+        {
+            capacity *= 2;
+            return capacity;
+        }
+        return next_pow_of_2(capacity);
     }
 
     void free()

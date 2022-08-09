@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
-#include <unistd.h>
 
 namespace freelibcxx
 {
@@ -49,6 +48,14 @@ template <typename T, typename C>
 concept check_fn = requires(T t, C c)
 {
     t(c);
+};
+
+template <typename T, typename C>
+concept check_random_fn = requires(T t, C c)
+{
+    t.offset_of(c);
+    t[-1];
+    t[1];
 };
 
 template <typename C, typename Val, typename Next>
@@ -169,8 +176,8 @@ class base_bidirectional_iterator
     bool operator!=(const base_bidirectional_iterator &it) const { return !operator==(it); }
 };
 
-template <typename C, typename Val, typename Prev, typename Next, typename Random>
-requires check_fn<Val, C> && check_fn<Prev, C> && check_fn<Next, C>
+template <typename C, typename Val, typename Random>
+requires check_fn<Val, C> && check_random_fn<Random, C>
 class base_random_access_iterator
 {
   private:
@@ -198,37 +205,41 @@ class base_random_access_iterator
     base_random_access_iterator operator--(int)
     {
         auto old = *this;
-        current = Prev()(current);
+        Random r(current);
+        current = r[-1];
         return old;
     }
     base_random_access_iterator &operator--()
     {
-        current = Prev()(current);
+        Random r(current);
+        current = r[-1];
         return *this;
     }
 
     base_random_access_iterator prev()
     {
-        auto s = *this;
-        s.current = Prev()(current);
+        Random r(current);
+        auto s = base_random_access_iterator(r[-1]);
         return s;
     }
 
     base_random_access_iterator operator++(int)
     {
         auto old = *this;
-        current = Next()(current);
+        Random r(current);
+        current = r[1];
         return old;
     }
     base_random_access_iterator &operator++()
     {
-        current = Next()(current);
+        Random r(current);
+        current = r[1];
         return *this;
     }
     base_random_access_iterator next()
     {
-        auto s = *this;
-        s.current = Next()(current);
+        Random r(current);
+        auto s = base_random_access_iterator(r[1]);
         return s;
     }
 
@@ -236,36 +247,36 @@ class base_random_access_iterator
 
     bool operator!=(const base_random_access_iterator &it) const { return !operator==(it); }
 
-    base_random_access_iterator operator+(ssize_t index)
+    base_random_access_iterator operator+(ptrdiff_t index)
     {
         Random r(current);
         return base_random_access_iterator(r[index]);
     }
-    base_random_access_iterator operator-(ssize_t index)
+    base_random_access_iterator operator-(ptrdiff_t index)
     {
         Random r(current);
         return base_random_access_iterator(r[-index]);
     }
 
-    base_random_access_iterator &operator+=(ssize_t index)
+    base_random_access_iterator &operator+=(ptrdiff_t index)
     {
         *this = operator+(index);
         return *this;
     }
 
-    base_random_access_iterator &operator-=(ssize_t index)
+    base_random_access_iterator &operator-=(ptrdiff_t index)
     {
         *this = operator-(index);
         return *this;
     }
 
-    ssize_t operator-(base_random_access_iterator to)
+    ptrdiff_t operator-(base_random_access_iterator to)
     {
         Random r(current);
         return r.offset_of(to.current);
     }
 
-    C &operator[](ssize_t index)
+    C &operator[](ptrdiff_t index)
     {
         Random r(current);
         return r[index];
