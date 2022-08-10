@@ -19,6 +19,7 @@ class string;
 template <typename CE> class base_string_view
 {
   private:
+    template <typename U> friend class base_string_view;
     struct value_fn
     {
         CE *operator()(CE *val) { return val; }
@@ -58,6 +59,8 @@ template <typename CE> class base_string_view
 
     CE *data() { return ptr_; }
 
+    size_t size() const { return len_; }
+
     string to_string(Allocator *allocator);
 
     iterator begin() { return iterator(ptr_); }
@@ -70,52 +73,62 @@ template <typename CE> class base_string_view
 
     base_string_view substr(size_t pos, size_t len)
     {
-        CXXASSERT(pos < len_ && pos + len < len_);
+        CXXASSERT(pos < len_ && pos + len <= len_);
+        return base_string_view(ptr_ + pos, len);
+    }
+
+    base_string_view substr(size_t pos)
+    {
+        CXXASSERT(pos < len_);
+        size_t len = len_ - pos;
         return base_string_view(ptr_ + pos, len);
     }
 
     template <size_t N> size_t split_n(char c, base_string_view views[N])
     {
-        CE *p = ptr_;
-        CE *prev = p;
-        size_t cnt = 0;
-        for (size_t i = 0; i < len_ && cnt < N; i++)
+        size_t index = 0;
+        auto iter = begin();
+        const auto e = end();
+        base_string_view sv = *this;
+        while (iter != e && index < N)
         {
-            if (*p == c)
+            sv = sv.substr(iter - sv.begin());
+            auto new_iter = sv.find(c);
+            views[index++] = sv.substr(0, new_iter - sv.begin());
+            if (new_iter == e)
             {
-                if (prev < p)
-                {
-                    views[cnt++] = base_string_view(prev, p - prev);
-                }
-                prev = p + 1;
+                break;
             }
-            p++;
+            iter = new_iter + 1;
         }
-        if (cnt < N)
+        if (sv.size() > 0 && index < N)
         {
-            views[cnt++] = base_string_view(prev, p - prev);
+            views[index++] = sv.substr(sv.size() - 1, 0);
         }
-        return cnt;
+        return index;
     }
 
     vector<base_string_view<CE>> split(char c, Allocator *vec_allocator)
     {
         vector<base_string_view<CE>> vec(vec_allocator);
-        CE *p = ptr_;
-        CE *prev = p;
-        for (size_t i = 0; i < len_; i++)
+        auto iter = begin();
+        const auto e = end();
+        base_string_view sv = *this;
+        while (iter != e)
         {
-            if (*p == c)
+            sv = sv.substr(iter - sv.begin());
+            auto new_iter = sv.find(c);
+            vec.push_back(sv.substr(0, new_iter - sv.begin()));
+            if (new_iter == e)
             {
-                if (prev < p)
-                {
-                    vec.push_back(base_string_view<CE>(prev, p - prev));
-                }
-                prev = p + 1;
+                return vec;
             }
-            p++;
+            iter = new_iter + 1;
         }
-        vec.push_back(base_string_view(prev, p - prev));
+        if (sv.size() > 0)
+        {
+            vec.push_back(sv.substr(sv.size() - 1, 0));
+        }
         return vec;
     }
 
@@ -164,19 +177,35 @@ template <typename CE> class base_string_view
     bool operator!=(const base_string_view &rhs) const { return !operator==(rhs); }
     bool operator!=(const char *rhs) const { return !operator==(rhs); }
 
-    char operator[](size_t index) const
+    CE operator[](size_t index) const
     {
         CXXASSERT(index < len_);
-        return ptr_[len_];
+        return ptr_[index];
     }
 
-    char &operator[](size_t index)
+    CE &operator[](size_t index)
     {
         CXXASSERT(index < len_);
-        return ptr_[len_];
+        return ptr_[index];
     }
 
     ::freelibcxx::span<CE> span() const { return ::freelibcxx::span<CE>(ptr_, len_); }
+
+    iterator find(char ch);
+    iterator rfind(char ch);
+
+    // find substring in string_view
+    iterator find_substr(base_string_view<const char> str);
+
+    // find last substring in string_view
+    iterator rfind_substr(base_string_view<const char> str);
+
+  private:
+    //  Brute Force matching
+    iterator strstr(base_string_view<const char> str);
+
+    //  Brute Force matching from right side
+    iterator rstrstr(base_string_view<const char> str);
 
   private:
     CE *ptr_;
@@ -283,6 +312,8 @@ class string
         return string_view(data(), size());
     }
 
+    const_string_view substr(size_t pos, size_t len) const { return view().substr(pos, len); }
+
     ::freelibcxx::span<const char> span() const
     {
         CXXASSERT(!is_shared());
@@ -362,6 +393,20 @@ class string
     {
         CXXASSERT(index < size());
         return data()[index];
+    }
+
+    const_iterator find(char ch) const
+    {
+        auto v = view();
+        auto iter = v.find(ch);
+        return begin() + (iter - v.begin());
+    }
+
+    const_iterator rfind(char ch) const
+    {
+        auto v = view();
+        auto iter = v.rfind(ch);
+        return begin() + (iter - v.begin());
     }
 
     string &operator+=(const string &rhs)
@@ -525,6 +570,245 @@ class string
   private:
     bool is_sso() const { return stack_.is_stack(); }
 };
+
+template <typename CE> typename base_string_view<CE>::iterator base_string_view<CE>::find(char ch)
+{
+    iterator beg = begin();
+    iterator e = end();
+    while (beg != e)
+    {
+        if (*beg == ch)
+        {
+            return beg;
+        }
+        beg++;
+    }
+    return e;
+    // TODO: make strchr faster
+}
+
+template <typename CE> typename base_string_view<CE>::iterator base_string_view<CE>::rfind(char ch)
+{
+    if (len_ == 0) [[unlikely]]
+    {
+        return end();
+    }
+    iterator beg = begin();
+    iterator e = end();
+    do
+    {
+        e--;
+        if (*e == ch)
+        {
+            return e;
+        }
+    } while (beg != e);
+    return end();
+}
+
+template <typename CE> typename base_string_view<CE>::iterator base_string_view<CE>::find_substr(const_string_view str)
+{
+    size_t n = len_;
+    size_t m = str.len_;
+    if (n < m) [[unlikely]]
+    {
+        return end();
+    }
+    if (m == 0) [[unlikely]]
+    {
+        return begin();
+    }
+    if (m == 1) [[unlikely]]
+    {
+        return find(str[0]);
+    }
+
+    if (m <= 5) [[likely]]
+    {
+        return strstr(str);
+    }
+
+    // Rabin-Karp Algorithm
+    constexpr uint64_t P = 16777619;
+    const char *haystack = ptr_;
+    const char *needle = str.ptr_;
+
+    size_t hash_m = 0;
+    size_t hash_n = 0;
+    size_t pow = 1;
+    size_t q = P;
+
+    size_t i = 0;
+    for (; i < m; i++)
+    {
+        hash_m = hash_m * P + needle[i];
+        hash_n = hash_n * P + haystack[i];
+    }
+    if (hash_m == hash_n)
+    {
+        if (substr(i - m, m) == str)
+        {
+            return begin() + i - m;
+        }
+    }
+
+    for (size_t j = m; j > 0; j >>= 1)
+    {
+        if (j & 0x1)
+        {
+            pow *= q;
+        }
+        q *= q;
+    }
+
+    while (i < n)
+    {
+        size_t v = i - m;
+        hash_n *= P;
+        hash_n += haystack[i];
+        hash_n -= pow * haystack[v];
+        i++;
+        v++;
+        if (hash_m == hash_n)
+        {
+            if (substr(v, m) == str)
+            {
+                return begin() + v;
+            }
+        }
+    }
+    return end();
+}
+
+template <typename CE> typename base_string_view<CE>::iterator base_string_view<CE>::rfind_substr(const_string_view str)
+{
+    size_t n = len_;
+    size_t m = str.len_;
+    if (n < m) [[unlikely]]
+    {
+        return end();
+    }
+    if (m == 0) [[unlikely]]
+    {
+        return begin();
+    }
+    if (m == 1) [[unlikely]]
+    {
+        return rfind(str[0]);
+    }
+
+    if (m <= 5) [[likely]]
+    {
+        return rstrstr(str);
+    }
+
+    // Rabin-Karp Algorithm
+    constexpr uint64_t P = 16777619;
+    const char *haystack = ptr_;
+    const char *needle = str.ptr_;
+
+    size_t hash_m = 0;
+    size_t hash_n = 0;
+    size_t pow = 1;
+    size_t q = P;
+
+    size_t i = 0;
+    for (; i < m; i++)
+    {
+        hash_m = hash_m * P + needle[m - i - 1];
+        hash_n = hash_n * P + haystack[n - i - 1];
+    }
+    if (hash_m == hash_n)
+    {
+        if (substr(m - i - 1, m) == str)
+        {
+            return begin() + m - i - 1;
+        }
+    }
+
+    for (size_t j = m; j > 0; j >>= 1)
+    {
+        if (j & 0x1)
+        {
+            pow *= q;
+        }
+        q *= q;
+    }
+
+    while (i < n)
+    {
+        size_t v = i - m;
+        hash_n *= P;
+        hash_n += haystack[n - i - 1];
+        hash_n -= pow * haystack[n - v - 1];
+        i++;
+        v++;
+        if (hash_m == hash_n)
+        {
+            if (substr(n - v - m, m) == str)
+            {
+                return begin() + n - v - m;
+            }
+        }
+    }
+    return end();
+}
+
+template <typename CE> typename base_string_view<CE>::iterator base_string_view<CE>::strstr(const_string_view str)
+{
+    size_t n = len_;
+    size_t m = str.len_;
+    const char *haystack = ptr_;
+    const char *needle = str.ptr_;
+    for (size_t i = 0; i < n; i++)
+    {
+        bool found = true;
+        for (size_t j = 0; j < m; j++)
+        {
+            if (haystack[i + j] == needle[j])
+            {
+                continue;
+            }
+            found = false;
+            break;
+        }
+
+        if (found) [[unlikely]]
+        {
+            return begin() + i;
+        }
+    }
+
+    return end();
+}
+
+template <typename CE> typename base_string_view<CE>::iterator base_string_view<CE>::rstrstr(const_string_view str)
+{
+    size_t n = len_;
+    size_t m = str.len_;
+    const char *haystack = ptr_;
+    const char *needle = str.ptr_;
+    for (size_t i = n; i > 0; i--)
+    {
+        bool found = true;
+        for (size_t j = 0; j < m; j++)
+        {
+            if (haystack[i + j - m - 1] == needle[j])
+            {
+                continue;
+            }
+            found = false;
+            break;
+        }
+
+        if (found) [[unlikely]]
+        {
+            return begin() + i - m - 1;
+        }
+    }
+
+    return end();
+}
 
 inline string::string(Allocator *allocator)
 {

@@ -136,21 +136,98 @@ TEST_CASE("create string_view from string", "string")
 
 TEST_CASE("split string_view", "string")
 {
-    const_string_view view("abc,def,gh,i,");
-    auto rets = view.split(',', &LibAllocatorV);
-    REQUIRE(rets.size() == 5);
-    REQUIRE(rets[0] == "abc");
-    REQUIRE(rets[1] == "def");
-    REQUIRE(rets[2] == "gh");
-    REQUIRE(rets[3] == "i");
-    REQUIRE(rets[4] == "");
+    SECTION("normal")
+    {
+        const_string_view view("abc,def,gh,i,");
+        auto rets = view.split(',', &LibAllocatorV);
+        REQUIRE(rets.size() == 5);
+        REQUIRE(rets[0] == "abc");
+        REQUIRE(rets[1] == "def");
+        REQUIRE(rets[2] == "gh");
+        REQUIRE(rets[3] == "i");
+        REQUIRE(rets[4] == "");
+    }
+
+    SECTION("empty")
+    {
+        const_string_view view(",");
+        auto rets = view.split(',', &LibAllocatorV);
+        REQUIRE(rets.size() == 2);
+    }
+
+    SECTION("single")
+    {
+        const_string_view view(" ");
+        auto rets = view.split(',', &LibAllocatorV);
+        REQUIRE(rets.size() == 1);
+        REQUIRE(rets[0] == " ");
+    }
 }
 
 TEST_CASE("split n string_view", "string")
 {
-    const_string_view view("abc,def,gh,i,");
-    const_string_view views[4];
-    auto cnt = view.split_n<4>(',', views);
-    REQUIRE(cnt == 4);
-    REQUIRE(views[3] == "i");
+    SECTION("normal")
+    {
+        const_string_view view("abc,def,gh,i,");
+        const_string_view views[4];
+        auto cnt = view.split_n<4>(',', views);
+        REQUIRE(cnt == 4);
+        REQUIRE(views[3] == "i");
+    }
+
+    SECTION("empty list")
+    {
+        const_string_view view(",,,");
+        const_string_view views[4];
+        auto cnt = view.split_n<4>(',', views);
+        REQUIRE(cnt == 4);
+        REQUIRE(views[3] == "");
+        REQUIRE(views[2] == "");
+    }
+
+    SECTION("empty string")
+    {
+        const_string_view view("");
+        const_string_view views[4];
+        auto cnt = view.split_n<4>(',', views);
+        REQUIRE(cnt == 0);
+    }
+}
+
+TEST_CASE("find string", "string")
+{
+    SECTION("find")
+    {
+        const_string_view view("hello \0\1world", 13);
+        REQUIRE(view.find('o') == view.begin() + 4);
+        REQUIRE(view.find('a') == view.end());
+        REQUIRE(view.rfind('o') == view.begin() + 9);
+    }
+
+    SECTION("findstr")
+    {
+        const_string_view view("it's freelibcxx in freestanding, \0review it\5", 44);
+
+        REQUIRE(view.find_substr("lo w") == view.end());
+
+        REQUIRE(view.find_substr("i") == view.begin());
+        REQUIRE(view.find_substr("'s") == view.begin() + 2);
+
+        REQUIRE(view.find_substr("freelibcxx") == view.begin() + 5);
+
+        REQUIRE(view.find_substr("freestanding,") == view.begin() + 19);
+        REQUIRE(view.find_substr("freestandivg,") == view.end());
+        REQUIRE(view.find_substr("it's freelibcxx in free") == view.begin());
+        REQUIRE(view.find_substr("revi") == view.begin() + 34);
+        REQUIRE(view.find_substr("review it") == view.begin() + 34);
+
+        // rfind
+        REQUIRE(view.rfind_substr("review it") == view.begin() + 34);
+        REQUIRE(view.rfind_substr("revi") == view.begin() + 34);
+        REQUIRE(view.rfind_substr("it's freelibcxx in free") == view.begin());
+        REQUIRE(view.rfind_substr("freestandivg,") == view.end());
+        REQUIRE(view.rfind_substr("'s") == view.begin() + 2);
+        REQUIRE(view.rfind_substr("i") == view.end() - 3);
+        REQUIRE(view.rfind_substr("it") == view.begin() + 41);
+    }
 }
