@@ -374,7 +374,7 @@ class hash_map : public base_hash_map<hash_map_pair<K, V>, hash_func>
     {
         if (this->size_ == 0) [[unlikely]]
         {
-            return 0;
+            return nullopt;
         }
         size_t hash = this->hash_key(key);
         for (auto it = this->table_[hash].next; it != nullptr; it = it->next)
@@ -392,7 +392,7 @@ class hash_map : public base_hash_map<hash_map_pair<K, V>, hash_func>
     {
         if (this->count == 0) [[unlikely]]
         {
-            return 0;
+            return nullopt;
         }
         size_t hash = this->hash_key(key);
         for (auto it = this->table[hash].next; it != nullptr; it = it->next)
