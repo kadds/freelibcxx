@@ -231,3 +231,25 @@ TEST_CASE("find string", "string")
         REQUIRE(view.rfind_substr("it") == view.begin() + 41);
     }
 }
+
+TEST_CASE("replace string", "string")
+{
+    SECTION("normal")
+    {
+        string view(&LibAllocatorV, "it's {}, which is {}{} {}");
+        string ret = view.replace_n("{}", "abc", 3);
+        REQUIRE(ret == "it's abc, which is abcabc {}");
+    }
+    SECTION("none")
+    {
+        string view(&LibAllocatorV, "it's uv");
+        string ret = view.replace_n("{}", "abc", 3);
+        REQUIRE(ret == "it's uv");
+    }
+    SECTION("empty")
+    {
+        string view(&LibAllocatorV, "freelibcxx freelibcxx freelibcxx");
+        string ret = view.replace("freelibcxx", "");
+        REQUIRE(ret == "  ");
+    }
+}

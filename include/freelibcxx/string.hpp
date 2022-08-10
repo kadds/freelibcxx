@@ -9,6 +9,8 @@
 #include "freelibcxx/span.hpp"
 #include "freelibcxx/vector.hpp"
 #include <cstddef>
+#include <limits>
+#include <type_traits>
 #include <utility>
 
 namespace freelibcxx
@@ -57,6 +59,19 @@ template <typename CE> class base_string_view
     {
     }
 
+    base_string_view(const base_string_view<CE> &rhs)
+        : ptr_(rhs.ptr_)
+        , len_(rhs.len_)
+    {
+    }
+
+    template <typename U>
+    requires std::is_same_v<CE, const char> base_string_view(const base_string_view<char> &rhs)
+        : ptr_(rhs.ptr_)
+        , len_(rhs.len_)
+    {
+    }
+
     CE *data() { return ptr_; }
 
     size_t size() const { return len_; }
@@ -73,64 +88,20 @@ template <typename CE> class base_string_view
 
     base_string_view substr(size_t pos, size_t len)
     {
-        CXXASSERT(pos < len_ && pos + len <= len_);
+        CXXASSERT(pos <= len_ && pos + len <= len_);
         return base_string_view(ptr_ + pos, len);
     }
 
     base_string_view substr(size_t pos)
     {
-        CXXASSERT(pos < len_);
+        CXXASSERT(pos <= len_);
         size_t len = len_ - pos;
         return base_string_view(ptr_ + pos, len);
     }
 
-    template <size_t N> size_t split_n(char c, base_string_view views[N])
-    {
-        size_t index = 0;
-        auto iter = begin();
-        const auto e = end();
-        base_string_view sv = *this;
-        while (iter != e && index < N)
-        {
-            sv = sv.substr(iter - sv.begin());
-            auto new_iter = sv.find(c);
-            views[index++] = sv.substr(0, new_iter - sv.begin());
-            if (new_iter == e)
-            {
-                break;
-            }
-            iter = new_iter + 1;
-        }
-        if (sv.size() > 0 && index < N)
-        {
-            views[index++] = sv.substr(sv.size() - 1, 0);
-        }
-        return index;
-    }
+    template <size_t N> size_t split_n(char c, base_string_view views[N]);
 
-    vector<base_string_view<CE>> split(char c, Allocator *vec_allocator)
-    {
-        vector<base_string_view<CE>> vec(vec_allocator);
-        auto iter = begin();
-        const auto e = end();
-        base_string_view sv = *this;
-        while (iter != e)
-        {
-            sv = sv.substr(iter - sv.begin());
-            auto new_iter = sv.find(c);
-            vec.push_back(sv.substr(0, new_iter - sv.begin()));
-            if (new_iter == e)
-            {
-                return vec;
-            }
-            iter = new_iter + 1;
-        }
-        if (sv.size() > 0)
-        {
-            vec.push_back(sv.substr(sv.size() - 1, 0));
-        }
-        return vec;
-    }
+    vector<base_string_view<CE>> split(char c, Allocator *vec_allocator);
 
     optional<int> to_int(int base = 10)
     {
@@ -312,6 +283,12 @@ class string
         return string_view(data(), size());
     }
 
+    const_string_view view() const
+    {
+        CXXASSERT(!is_shared());
+        return const_string_view(data(), size());
+    }
+
     const_string_view substr(size_t pos, size_t len) const { return view().substr(pos, len); }
 
     ::freelibcxx::span<const char> span() const
@@ -325,8 +302,6 @@ class string
         CXXASSERT(!is_shared());
         return ::freelibcxx::span(data(), size());
     }
-
-    const_string_view view() const { return const_string_view(data(), size()); }
 
     bool is_shared() const
     {
@@ -369,6 +344,8 @@ class string
     void append(const string &rhs) { append_buffer(rhs.data(), rhs.size()); }
 
     void append_buffer(const char *buf, size_t length);
+
+    void append_string_view(const_string_view sv) { append_buffer(sv.data(), sv.size()); }
 
     void push_back(char ch);
 
@@ -442,7 +419,7 @@ class string
 
     void from_int(int val, int base = 10)
     {
-        char buf[32];
+        char buf[16];
         ::freelibcxx::span<char> span(buf, sizeof(buf));
         int len = int2str(span, val, base).value_or(0);
         append_buffer(buf, len);
@@ -450,7 +427,7 @@ class string
 
     void from_uint(unsigned int val, int base = 10)
     {
-        char buf[32];
+        char buf[16];
         ::freelibcxx::span<char> span(buf, sizeof(buf));
         int len = uint2str(span, val, base).value_or(0);
         append_buffer(buf, len);
@@ -458,7 +435,7 @@ class string
 
     void from_int64(int64_t val, int base = 10)
     {
-        char buf[48];
+        char buf[32];
         ::freelibcxx::span<char> span(buf, sizeof(buf));
         int len = int642str(span, val, base).value_or(0);
         append_buffer(buf, len);
@@ -466,11 +443,19 @@ class string
 
     void from_uint64(uint64_t val, int base = 10)
     {
-        char buf[48];
+        char buf[32];
         ::freelibcxx::span<char> span(buf, sizeof(buf));
         int len = uint642str(span, val, base).value_or(0);
         append_buffer(buf, len);
     }
+
+    // replace all 'source' substring to 'target'
+    string replace(const_string_view source, const_string_view target) const
+    {
+        return replace_n(source, target, std::numeric_limits<size_t>::max());
+    }
+
+    string replace_n(const_string_view source, const_string_view target, size_t n) const;
 
   private:
     // little endian machine
@@ -810,6 +795,66 @@ template <typename CE> typename base_string_view<CE>::iterator base_string_view<
     return end();
 }
 
+template <typename CE> template <size_t N> size_t base_string_view<CE>::split_n(char c, base_string_view views[N])
+{
+    size_t index = 0;
+    auto iter = begin();
+    const auto e = end();
+    base_string_view sv = *this;
+    while (iter != e && index < N)
+    {
+        sv = sv.substr(iter - sv.begin());
+        auto new_iter = sv.find(c);
+        views[index++] = sv.substr(0, new_iter - sv.begin());
+        if (new_iter == e)
+        {
+            break;
+        }
+        iter = new_iter + 1;
+    }
+    if (sv.size() > 0 && index < N)
+    {
+        views[index++] = sv.substr(sv.size() - 1, 0);
+    }
+    return index;
+}
+
+template <typename CE> vector<base_string_view<CE>> base_string_view<CE>::split(char c, Allocator *vec_allocator)
+{
+    vector<base_string_view<CE>> vec(vec_allocator);
+    auto iter = begin();
+    const auto e = end();
+    base_string_view sv = *this;
+    while (iter != e)
+    {
+        sv = sv.substr(iter - sv.begin());
+        auto new_iter = sv.find(c);
+        vec.push_back(sv.substr(0, new_iter - sv.begin()));
+        if (new_iter == e)
+        {
+            return vec;
+        }
+        iter = new_iter + 1;
+    }
+    if (sv.size() > 0)
+    {
+        vec.push_back(sv.substr(sv.size() - 1, 0));
+    }
+    return vec;
+}
+
+template <typename CE> string base_string_view<CE>::to_string(Allocator *allocator)
+{
+    return string(allocator, ptr_, len_);
+}
+
+template <typename CE> bool base_string_view<CE>::operator==(const string &rhs) const
+{
+    return operator==()(rhs.view());
+}
+
+// string impl
+
 inline string::string(Allocator *allocator)
 {
     heap_.init();
@@ -978,9 +1023,9 @@ inline void string::ensure(size_t cap)
         }
         auto size = stack_.size();
         auto allocator = stack_.allocator();
-        auto buf = allocator->allocate(cap, 1);
+        auto buf = allocator->allocate(cap + 1, 1);
 
-        memcpy(buf, stack_.buffer(), size);
+        memcpy(buf, stack_.buffer(), size + 1);
 
         heap_.set_allocator(allocator);
         heap_.set_buffer(reinterpret_cast<char *>(buf));
@@ -994,7 +1039,7 @@ inline void string::ensure(size_t cap)
             return;
         }
         auto allocator = heap_.allocator();
-        auto buf = allocator->allocate(cap, 1);
+        auto buf = allocator->allocate(cap + 1, 1);
         auto old_buf = heap_.buffer();
         memcpy(buf, old_buf, heap_.size());
 
@@ -1090,14 +1135,42 @@ inline void string::init_lit(const char *str)
     heap_.set_buffer(const_cast<char *>(str));
 }
 
-template <typename CE> string base_string_view<CE>::to_string(Allocator *allocator)
+inline string string::replace_n(const_string_view source, const_string_view target, size_t n) const
 {
-    return string(allocator, ptr_, len_);
-}
+    Allocator *a;
+    if (is_sso()) [[likely]]
+    {
+        a = stack_.allocator();
+    }
+    else
+    {
+        a = heap_.allocator();
+    }
+    string str(a);
 
-template <typename CE> bool base_string_view<CE>::operator==(const string &rhs) const
-{
-    return operator==()(rhs.view());
+    const_string_view sv = view();
+    const auto e = sv.end();
+    size_t times = 0;
+
+    while (sv.size() > 0 && times < n)
+    {
+        auto new_iter = sv.find_substr(source);
+        auto pos = new_iter - sv.begin();
+        if (new_iter != e)
+        {
+            str.append_string_view(sv.substr(0, pos));
+            str.append_string_view(target);
+            sv = sv.substr(pos + source.size());
+            times++;
+        }
+        else
+        {
+            break;
+        }
+    }
+    str.append_string_view(sv);
+
+    return str;
 }
 
 inline string &operator<<(string &s, int val)
