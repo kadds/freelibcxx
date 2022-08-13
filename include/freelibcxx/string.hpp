@@ -177,6 +177,42 @@ template <typename CE> class base_string_view
     // find last substring in string_view
     iterator rfind_substr(base_string_view<const char> str);
 
+    template <typename F = decltype(is_space)> base_string_view trim_begin(F f = is_space)
+    {
+        auto ptr = ptr_;
+        auto len = len_;
+        while (len > 0)
+        {
+            if (!f(*ptr))
+            {
+                break;
+            }
+            len--;
+            ptr++;
+        }
+        return base_string_view(ptr, len);
+    }
+
+    template <typename F = decltype(is_space)> base_string_view trim_end(F f = is_space)
+    {
+        auto ptr = ptr_;
+        auto len = len_;
+        while (len > 0)
+        {
+            if (!f(ptr[len]))
+            {
+                break;
+            }
+            len--;
+        }
+        return base_string_view(ptr, len);
+    }
+
+    template <typename F = decltype(is_space)> base_string_view trim(F f = is_space)
+    {
+        return trim_begin(f).trim_end(f);
+    }
+
   private:
     //  Brute Force matching
     iterator strstr(base_string_view<const char> str);
@@ -964,7 +1000,7 @@ inline bool string::operator==(const char *rhs) const
 
 inline void string::resize(size_t size)
 {
-    ensure(size);
+    ensure(size + 1);
     size_t s;
     char *buf;
 
@@ -1001,7 +1037,7 @@ inline void string::insert_at(size_t index, const char *buf, size_t len)
     CXXASSERT(total_size >= len);
     CXXASSERT(index <= s);
 
-    ensure(total_size);
+    ensure(total_size + 1);
     char *b;
     if (is_sso()) [[likely]]
     {
@@ -1038,7 +1074,7 @@ inline void string::ensure(size_t cap)
         }
         auto size = stack_.size();
         auto allocator = stack_.allocator();
-        auto buf = allocator->allocate(cap + 1, 1);
+        auto buf = allocator->allocate(cap, 1);
 
         memcpy(buf, stack_.buffer(), size + 1);
 

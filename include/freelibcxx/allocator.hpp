@@ -4,8 +4,8 @@
 #include <cstdint>
 #include <new>
 
-extern "C" [[gnu::weak]] void *aligned_alloc(size_t alignment, size_t size) noexcept;
-extern "C" [[gnu::weak]] void free(void *ptr) noexcept;
+// extern "C" [[gnu::weak]] void *aligned_alloc(size_t alignment, size_t size) noexcept;
+// extern "C" [[gnu::weak]] void free(void *ptr) noexcept;
 
 #include <utility>
 namespace freelibcxx
@@ -70,11 +70,11 @@ class Allocator
     }
 };
 
-class DefaultAllocator : public Allocator
+class NullAllocator : public Allocator
 {
   public:
-    void *allocate(size_t size, size_t align) noexcept override { return aligned_alloc(align, size); }
-    void deallocate(void *ptr) noexcept override { free(ptr); }
+    void *allocate(size_t size, size_t align) noexcept override { return nullptr; }
+    void deallocate(void *ptr) noexcept override {}
 };
 
 } // namespace freelibcxx

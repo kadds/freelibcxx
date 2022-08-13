@@ -32,4 +32,6 @@ static constexpr inline size_t select_capacity(size_t capacity)
     return next_pow_of_2(capacity);
 }
 
+static constexpr inline bool is_space(char ch) { return ch == ' ' || ch == '\t'; }
+
 } // namespace freelibcxx
