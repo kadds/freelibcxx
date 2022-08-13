@@ -59,6 +59,12 @@ template <typename CE> class base_string_view
     {
     }
 
+    base_string_view(::freelibcxx::span<CE> span)
+        : ptr_(span.get())
+        , len_(span.size())
+    {
+    }
+
     base_string_view(const base_string_view<CE> &rhs)
         : ptr_(rhs.ptr_)
         , len_(rhs.len_)
@@ -1020,7 +1026,10 @@ inline void string::insert_at(size_t index, const char *buf, size_t len)
 
 inline void string::ensure(size_t cap)
 {
-    cap = select_capacity(cap);
+    if (cap > stack_.cap())
+    {
+        cap = select_capacity(cap);
+    }
     if (is_sso()) [[likely]]
     {
         if (cap < stack_.cap())

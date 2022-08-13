@@ -37,13 +37,6 @@ concept random_access_iterator = requires(T t)
 template <typename T>
 concept must_forward_iterator = forward_iterator<T> && !bidirectional_iterator<T>;
 
-template <typename T>
-concept random_iterator = requires(T t)
-{
-    t.at(1);
-}
-&&bidirectional_iterator<T>;
-
 template <typename T, typename C>
 concept check_fn = requires(T t, C c)
 {
@@ -344,6 +337,42 @@ requires forward_iterator<T> T find_if(T beg, T end, P p)
             return beg;
         }
         beg++;
+    }
+    return beg;
+}
+
+template <typename T, typename E>
+requires random_access_iterator<T> T lower_bound(T beg, T end, const E &val)
+{
+    while (beg != end)
+    {
+        auto m = beg + (end - beg) / 2;
+        if (*m < val)
+        {
+            beg = m + 1;
+        }
+        else
+        {
+            end = m;
+        }
+    }
+    return beg;
+}
+
+template <typename T, typename E>
+requires random_access_iterator<T> T upper_bound(T beg, T end, const E &val)
+{
+    while (beg != end)
+    {
+        auto m = beg + (end - beg) / 2;
+        if (*m <= val)
+        {
+            beg = m + 1;
+        }
+        else
+        {
+            end = m;
+        }
     }
     return beg;
 }
