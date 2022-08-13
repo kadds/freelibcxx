@@ -183,7 +183,7 @@ template <typename E> class base_vector
     /// remove at index
     iterator remove_at(size_t index)
     {
-        remove_at(index, index + 1);
+        remove_n_at(index, 1);
         return begin() + index;
     }
 
@@ -265,29 +265,28 @@ template <typename E> class base_vector
         count_ = size;
     }
 
-    void remove_at(size_t index, size_t end_index)
+    void remove_n_at(size_t index, size_t n)
     {
-        CXXASSERT(index >= 0 && index <= end_index && end_index <= count_);
-        size_t remove_count = end_index - index;
+        CXXASSERT(index >= 0 && index + n <= count_);
 
-        for (size_t i = index + remove_count; i < count_; i++)
+        for (size_t i = index + n; i < count_; i++)
         {
             if constexpr (std::is_nothrow_move_assignable_v<E>)
             {
-                buffer_[i - remove_count] = std::move(buffer_[i]);
+                buffer_[i - n] = std::move(buffer_[i]);
             }
             else
             {
-                buffer_[i - remove_count] = buffer_[i];
+                buffer_[i - n] = buffer_[i];
             }
         }
 
-        for (size_t i = 1; i <= remove_count; i++)
+        for (size_t i = 1; i <= n; i++)
         {
-            buffer_[count_ - remove_count].~E();
+            buffer_[count_ - n].~E();
         }
 
-        count_ -= remove_count;
+        count_ -= n;
     }
 
     /// remove current iter

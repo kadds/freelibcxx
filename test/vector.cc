@@ -55,7 +55,7 @@ TEST_CASE("remove element in vector", "vector")
     SECTION("range")
     {
         vector<int> vec(&LibAllocatorV, {1, 2, 3, 4, 5});
-        vec.remove_at(1, 3);
+        vec.remove_n_at(1, 2);
         REQUIRE(vec.size() == 3);
         REQUIRE(vec[1] == 4);
     }
