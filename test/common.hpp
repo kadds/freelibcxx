@@ -27,10 +27,17 @@ struct Int
     }
 
     Int(const Int &rhs)
-        : inner(new int(*rhs.inner))
-        , v(rhs.v)
+        : v(rhs.v)
         , s(rhs.s)
     {
+        if (rhs.inner != nullptr)
+        {
+            inner = new int(*rhs.inner);
+        }
+        else
+        {
+            inner = nullptr;
+        }
     }
 
     Int(Int &&rhs)
@@ -53,7 +60,14 @@ struct Int
         {
             delete inner;
         }
-        inner = new int(*rhs.inner);
+        if (rhs.inner != nullptr)
+        {
+            inner = new int(*rhs.inner);
+        }
+        else
+        {
+            inner = nullptr;
+        }
         v = rhs.v;
         s = rhs.s;
 

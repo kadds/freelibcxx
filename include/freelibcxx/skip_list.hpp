@@ -51,9 +51,9 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
     skip_list(Allocator *allocator, uint64_t seed, std::initializer_list<E> il)
         : skip_list(allocator, seed)
     {
-        for (auto e : il)
+        for (const E &e : il)
         {
-            insert(std::move(e));
+            insert(e);
         }
     }
 
@@ -63,7 +63,7 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
         copy(rhs);
     }
 
-    skip_list(skip_list &&rhs)
+    skip_list(skip_list &&rhs) noexcept
         : engine_(rhs.engine_())
     {
         move(std::move(rhs));
@@ -80,7 +80,7 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
         return *this;
     }
 
-    skip_list &operator=(skip_list &&rhs)
+    skip_list &operator=(skip_list &&rhs) noexcept
     {
         if (this == &rhs)
             return *this;
@@ -265,7 +265,7 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
 
     bool has(const E &element) const { return find(element) != end(); }
 
-    void clear()
+    void clear() noexcept
     {
         node_t *node = node_;
         node_t *c = node->level_[0].next_;
@@ -301,7 +301,7 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
         return node_level - 1;
     }
 
-    void free()
+    void free() noexcept
     {
         if (node_ != nullptr)
         {
@@ -332,7 +332,7 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
         }
     }
 
-    void move(skip_list &&rhs)
+    void move(skip_list &&rhs) noexcept
     {
         count_ = rhs.count_;
         level_ = rhs.level_;

@@ -5,16 +5,11 @@
 #include "freelibcxx/iterator.hpp"
 #include "utils.hpp"
 #include <cstddef>
+#include <type_traits>
 #include <utility>
 
 namespace freelibcxx
 {
-
-class slice
-{
-  public:
-  private:
-};
 
 /// A container like std::vector
 template <typename E> class base_vector
@@ -52,37 +47,36 @@ template <typename E> class base_vector
     {
     }
 
-    base_vector(Allocator *allocator, std::initializer_list<E> il)
+    base_vector(Allocator *allocator, std::initializer_list<E> ilist)
         : base_vector(allocator)
     {
-        recapacity(il.size());
-        count_ = il.size();
+        recapacity(ilist.size());
         size_t i = 0;
-        for (E a : il)
+        for (const E &a : ilist)
         {
-            new (buffer_ + i) E(a);
-            i++;
+            new (buffer_ + i++) E(a);
         }
+        count_ = i;
     }
 
     base_vector(const base_vector &rhs) { copy(rhs); }
 
-    base_vector(base_vector &&rhs) { move(std::move(rhs)); }
+    base_vector(base_vector &&rhs) noexcept { move(std::move(rhs)); }
 
     ~base_vector() { free(); }
 
     base_vector &operator=(const base_vector &rhs)
     {
-        if (&rhs == this)
+        if (this == &rhs) [[unlikely]]
             return *this;
         free();
         copy(rhs);
         return *this;
     }
 
-    base_vector &operator=(base_vector &&rhs)
+    base_vector &operator=(base_vector &&rhs) noexcept
     {
-        if (this == &rhs)
+        if (this == &rhs) [[unlikely]]
             return *this;
         free();
         move(std::move(rhs));
@@ -106,7 +100,8 @@ template <typename E> class base_vector
     {
         CXXASSERT(count_ > 0);
         E e = std::move(buffer_[count_ - 1]);
-        remove_at(count_ - 1);
+        buffer_[count_ - 1].~E();
+        count_--;
         return e;
     }
 
@@ -148,9 +143,29 @@ template <typename E> class base_vector
         ensure(count_ + 1);
         if (count_ > 0) [[likely]]
         {
-            new (buffer_ + count_) E(std::move(buffer_[count_ - 1]));
+            if constexpr (std::is_nothrow_move_constructible_v<E>)
+            {
+                new (buffer_ + count_) E(std::move(buffer_[count_ - 1]));
+            }
+            else
+            {
+                new (buffer_ + count_) E(buffer_[count_ - 1]);
+            }
             for (size_t i = count_ - 1; i > index; i--)
-                buffer_[i] = std::move(buffer_[i - 1]);
+            {
+                if constexpr (std::is_nothrow_move_assignable_v<E>)
+                {
+                    buffer_[i] = std::move(buffer_[i - 1]);
+                }
+                else
+                {
+                    buffer_[i] = buffer_[i - 1];
+                }
+            }
+        }
+        if (index < count_)
+        {
+            buffer_[index].~E();
         }
 
         new (buffer_ + index) E(std::forward<Args>(args)...);
@@ -168,17 +183,8 @@ template <typename E> class base_vector
     /// remove at index
     iterator remove_at(size_t index)
     {
-        if (index >= count_) [[unlikely]]
-            return end();
-
-        for (size_t i = index; i + 1 < count_; i++)
-            buffer_[i] = std::move(buffer_[i + 1]);
-
-        buffer_[count_ - 1].~E();
-
-        ensure(count_ - 1);
-        count_--;
-        return iterator(&buffer_[index]);
+        remove_at(index, index + 1);
+        return begin() + index;
     }
 
     /// remove current iter
@@ -218,21 +224,23 @@ template <typename E> class base_vector
 
     void fitcapacity() { recapacity(count_); }
 
-    template <typename... Args> void expand(size_t element_count_, Args &&...args)
+    void expand(size_t element_count, E &&val)
     {
-        if (element_count_ <= count_) [[unlikely]]
+        if (element_count <= count_) [[unlikely]]
             return;
 
-        recapacity(element_count_);
-        for (size_t i = count_; i < element_count_; i++)
-            new (&buffer_[i]) E(std::forward<Args>(args)...);
+        ensure(element_count);
+        for (size_t i = count_; i < element_count; i++)
+        {
+            new (&buffer_[i]) E(val);
+        }
 
-        count_ = element_count_;
+        count_ = element_count;
     }
 
     void shrink(size_t element_count)
     {
-        if (element_count >= count_) [[unlikely]]
+        if (element_count > count_) [[unlikely]]
             return;
         recapacity(element_count);
     }
@@ -249,24 +257,37 @@ template <typename E> class base_vector
 
     void truncate(size_t size)
     {
+        CXXASSERT(size <= count_);
         for (size_t i = size; i < count_; i++)
+        {
             buffer_[i].~E();
+        }
         count_ = size;
     }
 
     void remove_at(size_t index, size_t end_index)
     {
         CXXASSERT(index >= 0 && index <= end_index && end_index <= count_);
-        size_t rm_cnt = end_index - index;
+        size_t remove_count = end_index - index;
 
-        for (size_t i = index; i + rm_cnt < count_; i++)
-            buffer_[i] = std::move(buffer_[i + rm_cnt]);
+        for (size_t i = index + remove_count; i < count_; i++)
+        {
+            if constexpr (std::is_nothrow_move_assignable_v<E>)
+            {
+                buffer_[i - remove_count] = std::move(buffer_[i]);
+            }
+            else
+            {
+                buffer_[i - remove_count] = buffer_[i];
+            }
+        }
 
-        for (size_t i = 1; i <= rm_cnt; i++)
-            buffer_[count_ - i].~E();
+        for (size_t i = 1; i <= remove_count; i++)
+        {
+            buffer_[count_ - remove_count].~E();
+        }
 
-        ensure(count_ - rm_cnt);
-        count_ -= rm_cnt;
+        count_ -= remove_count;
     }
 
     /// remove current iter
@@ -292,7 +313,7 @@ template <typename E> class base_vector
     }
 
   private:
-    void free()
+    void free() noexcept
     {
         if (buffer_ != nullptr)
         {
@@ -303,7 +324,7 @@ template <typename E> class base_vector
         }
     }
 
-    void move(base_vector &&rhs)
+    void move(base_vector &&rhs) noexcept
     {
         buffer_ = rhs.buffer_;
         count_ = rhs.count_;
@@ -321,26 +342,36 @@ template <typename E> class base_vector
         allocator_ = rhs.allocator_;
         buffer_ = reinterpret_cast<E *>(allocator_->allocate(count_ * sizeof(E), alignof(E)));
         for (size_t i = 0; i < count_; i++)
-            buffer_[i] = rhs.buffer_[i];
+        {
+            new (buffer_ + i) E(rhs.buffer_[i]);
+        }
     }
 
-    void recapacity(size_t element_count)
+    void recapacity(size_t cap)
     {
-        if (element_count == cap_)
+        if (cap == cap_)
             return;
 
-        E *new_buffer = reinterpret_cast<E *>(allocator_->allocate(element_count * sizeof(E), alignof(E)));
+        E *buffer = reinterpret_cast<E *>(allocator_->allocate(cap * sizeof(E), alignof(E)));
         if (buffer_ != nullptr)
         {
-            size_t c = min(element_count, count_);
-
-            for (size_t i = 0; i < c; i++)
-                new (new_buffer + i) E(std::move(buffer_[i]));
+            for (size_t i = 0; i < count_; i++)
+            {
+                if constexpr (std::is_nothrow_move_constructible_v<E>)
+                {
+                    new (buffer + i) E(std::move(buffer_[i]));
+                }
+                else
+                {
+                    new (buffer + i) E(buffer_[i]);
+                }
+                buffer_[i].~E();
+            }
 
             allocator_->deallocate(buffer_);
         }
-        buffer_ = new_buffer;
-        cap_ = element_count;
+        buffer_ = buffer;
+        cap_ = cap;
     }
 
   private:

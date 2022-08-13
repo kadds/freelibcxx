@@ -127,7 +127,7 @@ template <typename P, typename hash_func> class base_hash_map
 
     base_hash_map(const base_hash_map &rhs) { copy(rhs); }
 
-    base_hash_map(base_hash_map &&rhs) { move(std::move(rhs)); }
+    base_hash_map(base_hash_map &&rhs) noexcept { move(std::move(rhs)); }
 
     base_hash_map &operator=(const base_hash_map &rhs)
     {
@@ -139,7 +139,7 @@ template <typename P, typename hash_func> class base_hash_map
         return *this;
     }
 
-    base_hash_map &operator=(base_hash_map &&rhs)
+    base_hash_map &operator=(base_hash_map &&rhs) noexcept
     {
         if (&rhs == this)
             return *this;
@@ -211,7 +211,7 @@ template <typename P, typename hash_func> class base_hash_map
 
     size_t size() const { return size_; }
 
-    void clear()
+    void clear() noexcept
     {
         for (size_t i = 0; i < cap_; i++)
         {
@@ -293,7 +293,7 @@ template <typename P, typename hash_func> class base_hash_map
         }
     }
 
-    void free()
+    void free() noexcept
     {
         if (table_ != nullptr)
         {
@@ -318,7 +318,7 @@ template <typename P, typename hash_func> class base_hash_map
         }
     }
 
-    void move(base_hash_map &&rhs)
+    void move(base_hash_map &&rhs) noexcept
     {
         allocator_ = rhs.allocator_;
         table_ = rhs.table_;

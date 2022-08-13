@@ -63,7 +63,7 @@ template <typename E> class singly_linked_list
 
     singly_linked_list(const singly_linked_list &rhs) { copy(rhs); }
 
-    singly_linked_list(singly_linked_list &&rhs) { move(std::move(rhs)); }
+    singly_linked_list(singly_linked_list &&rhs) noexcept { move(std::move(rhs)); }
 
     singly_linked_list &operator=(const singly_linked_list &rhs)
     {
@@ -75,7 +75,7 @@ template <typename E> class singly_linked_list
         return *this;
     }
 
-    singly_linked_list &operator=(singly_linked_list &&rhs)
+    singly_linked_list &operator=(singly_linked_list &&rhs) noexcept
     {
 
         if (&rhs == this) [[unlikely]]
@@ -162,7 +162,7 @@ template <typename E> class singly_linked_list
         return iterator(next);
     }
 
-    void clear()
+    void clear() noexcept
     {
         auto node = ((list_node *)head_)->next;
         while (node != (list_node *)tail_)
@@ -205,7 +205,7 @@ template <typename E> class singly_linked_list
         return i;
     }
 
-    void free()
+    void free() noexcept
     {
         if (head_ != nullptr)
         {
@@ -245,7 +245,7 @@ template <typename E> class singly_linked_list
         }
     }
 
-    void move(singly_linked_list &&rhs)
+    void move(singly_linked_list &&rhs) noexcept
     {
         allocator_ = rhs.allocator_;
         head_ = rhs.head_;

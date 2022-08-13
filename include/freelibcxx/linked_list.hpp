@@ -58,7 +58,7 @@ template <typename E> class linked_list
 
     linked_list(const linked_list &rhs) { copy(rhs); }
 
-    linked_list(linked_list &&rhs) { move(std::move(rhs)); }
+    linked_list(linked_list &&rhs) noexcept { move(std::move(rhs)); }
 
     linked_list &operator=(const linked_list &rhs)
     {
@@ -69,7 +69,7 @@ template <typename E> class linked_list
         return *this;
     }
 
-    linked_list &operator=(linked_list &&rhs)
+    linked_list &operator=(linked_list &&rhs) noexcept
     {
         if (&rhs == this) [[unlikely]]
             return *this;
@@ -207,7 +207,7 @@ template <typename E> class linked_list
         return iterator(next);
     }
 
-    void clear()
+    void clear() noexcept
     {
         auto node = ((list_node *)head_)->next;
         while (node != (list_node *)tail_)
@@ -236,7 +236,7 @@ template <typename E> class linked_list
     }
 
   private:
-    void free()
+    void free() noexcept
     {
         if (head_ != nullptr)
         {
@@ -268,7 +268,7 @@ template <typename E> class linked_list
         }
     }
 
-    void move(linked_list &&rhs)
+    void move(linked_list &&rhs) noexcept
     {
         allocator_ = rhs.allocator_;
         head_ = rhs.head_;

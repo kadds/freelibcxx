@@ -1,5 +1,6 @@
 #include "freelibcxx/vector.hpp"
 #include "common.hpp"
+#include "freelibcxx/string.hpp"
 #include <catch2/catch_test_macros.hpp>
 
 using namespace freelibcxx;
@@ -157,4 +158,17 @@ TEST_CASE("object vector", "vector")
     vec.ensure(10);
     vec.remove_at(1);
     REQUIRE(vec[3] == Int(4, 6));
+
+    SECTION("string")
+    {
+        const char *s = "123456789012345678901234567890";
+        vector<string> vec(&LibAllocatorV);
+        for (int j = 0; j < 26; j++)
+        {
+            vec.push_back(&LibAllocatorV, s, j);
+        }
+        vec.insert_at(1, string(&LibAllocatorV, s, 27));
+        REQUIRE(vec.back() == const_string_view(s, 25));
+        REQUIRE(vec[1] == const_string_view(s, 27));
+    }
 }

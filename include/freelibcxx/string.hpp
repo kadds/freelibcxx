@@ -217,7 +217,7 @@ class string
 
     string(const string &rhs) { copy(rhs); }
 
-    string(string &&rhs) { move(std::move(rhs)); }
+    string(string &&rhs) noexcept { move(std::move(rhs)); }
 
     ///\brief init empty string ""
     string(Allocator *allocator);
@@ -243,7 +243,7 @@ class string
 
     string &operator=(const string &rhs);
 
-    string &operator=(string &&rhs);
+    string &operator=(string &&rhs) noexcept;
 
     size_t size() const
     {
@@ -284,6 +284,12 @@ class string
     }
 
     const_string_view view() const
+    {
+        CXXASSERT(!is_shared());
+        return const_string_view(data(), size());
+    }
+
+    const_string_view const_view() const
     {
         CXXASSERT(!is_shared());
         return const_string_view(data(), size());
@@ -542,11 +548,11 @@ class string
     static_assert(sizeof(stack_t) == sizeof(heap_t));
 
   private:
-    void free();
+    void free() noexcept;
 
     void copy(const string &rhs);
 
-    void move(string &&rhs);
+    void move(string &&rhs) noexcept;
 
     void init(Allocator *allocator, const char *str, int len = -1);
 
@@ -850,7 +856,7 @@ template <typename CE> string base_string_view<CE>::to_string(Allocator *allocat
 
 template <typename CE> bool base_string_view<CE>::operator==(const string &rhs) const
 {
-    return operator==()(rhs.view());
+    return operator==(rhs.const_view());
 }
 
 // string impl
@@ -871,7 +877,7 @@ inline string &string::operator=(const string &rhs)
     return *this;
 }
 
-inline string &string::operator=(string &&rhs)
+inline string &string::operator=(string &&rhs) noexcept
 {
     if (this == &rhs)
         return *this;
@@ -1050,7 +1056,7 @@ inline void string::ensure(size_t cap)
     }
 }
 
-inline void string::free()
+inline void string::free() noexcept
 {
     if (is_sso()) [[likely]]
     {
@@ -1097,7 +1103,7 @@ inline void string::copy(const string &rhs)
     }
 }
 
-inline void string::move(string &&rhs)
+inline void string::move(string &&rhs) noexcept
 {
     if (rhs.is_sso()) [[likely]]
     {
@@ -1115,8 +1121,10 @@ inline void string::move(string &&rhs)
 }
 inline void string::init(Allocator *allocator, const char *str, int len)
 {
-    if (len < 0)
+    if (len < 0) [[unlikely]]
+    {
         len = strlen(str);
+    }
 
     stack_.init();
     stack_.set_allocator(allocator);
