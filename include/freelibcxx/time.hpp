@@ -148,7 +148,7 @@ inline constexpr unsigned prev_weekday(unsigned wd) noexcept { return wd > 0 ? w
 inline span<char> tm_t::format(span<char> buf, const char *format)
 {
     char *b = buf.get();
-    int64_t len = buf.size();
+    uint64_t len = buf.size();
     char fmt_buf[8];
 
     while (*format != 0 && len > 0)
@@ -199,7 +199,7 @@ inline optional<tm_t> tm_t::from(span<const char> buf, const char *format)
     tm_t t;
 
     const char *b = buf.get();
-    int64_t len = buf.size();
+    uint64_t len = buf.size();
 
     while (*format != 0 && len > 0)
     {
@@ -310,12 +310,12 @@ inline int64_t tm_t::to_posix_seconds()
     */
 
     int64_t days = detail::days_from_civil((int)year, (int)month + 1, (int)mday);
-    return (days * 60 * 60 * 24) + hours * 60 * 60 + minutes * 60 + seconds;
+    return (days * 60 * 60 * 24) + (int64_t)hours * 60 * 60 + (int64_t)minutes * 60 + (int64_t)seconds;
 }
 
 inline int64_t tm_t::to_posix_microseconds()
 {
-    return to_posix_seconds() * 1000000 + milliseconds * 1000 + microseconds;
+    return to_posix_seconds() * 1000000 + (int64_t)milliseconds * 1000 + (int64_t)microseconds;
 }
 
 inline optional<tm_t> tm_t::from_posix_seconds(int64_t timestamp)
