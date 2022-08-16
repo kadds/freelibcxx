@@ -2,9 +2,12 @@
 #include "freelibcxx/algorithm.hpp"
 #include "freelibcxx/assert.hpp"
 #include "freelibcxx/optional.hpp"
+#include "freelibcxx/tuple.hpp"
+#include "freelibcxx/utils.hpp"
 #include <cstddef>
 #include <iterator>
 #include <limits>
+#include <type_traits>
 namespace freelibcxx
 {
 
@@ -31,7 +34,7 @@ concept buddy_operator = requires(T t)
     t.get_merged((INDEX)1);
     t.get_used((INDEX)1);
 
-    // get tuple [prev, next, order, used]
+    // get tuple [prev, next, order, used, merged]
     t.get(0);
 };
 
@@ -41,7 +44,7 @@ template <typename OPERATOR, int MAXORDER = 11, typename INDEX = size_t>
 requires detail::buddy_operator<OPERATOR, INDEX>
 class buddy
 {
-    static_assert(MAXORDER < 20, "order too large");
+    static_assert(MAXORDER <= 20 && MAXORDER > 4, "order too large");
 
     using index_t = INDEX;
     using count_t = index_t;
@@ -53,10 +56,12 @@ class buddy
     buddy(const buddy &) = delete;
     buddy &operator=(const buddy &) = delete;
 
-    void alloc_at(index_t index, count_t count = 1);
+    // mark pages [index, index+pages) as used
+    // undefined behavior if any pages on [index, index+pages] is used
+    bool alloc_at(index_t index, count_t pages = 1);
 
     optional<index_t> alloc(count_t pages);
-    void free(index_t page_index);
+    bool free(index_t page_index);
 
     count_t debug_free_pages();
     count_t free_pages() const { return free_pages_; }
@@ -69,7 +74,7 @@ class buddy
     void merge(int order, size_t max_merge_times_for_each_of_level = std::numeric_limits<size_t>::max());
     void lazy_merge(int order) { merge(order, 1); }
 
-    index_t split(index_t index);
+    tuple<index_t, index_t> split(index_t index);
 
     void detach_page_from_list(index_t index);
     void attach_page_to_list(index_t index, int order);
@@ -116,15 +121,30 @@ void buddy<OPERATOR, MAXORDER, INDEX>::init_orders(index_t beg, index_t end, int
         return;
     }
     auto cur = beg;
+    const auto pages = order2pages(order);
 
     // fill merged flags
+    index_t pass = 0;
     while (cur < end)
     {
-        oper_.set(cur, empty_index(), empty_index(), order, false, true);
+        if (pass++ >= pages)
+        {
+            pass = 1;
+        }
+        int o = 0;
+        if constexpr (std::is_same_v<index_t, uint32_t>)
+        {
+            o = 1 + order - (32 - __builtin_clz(pass));
+        }
+        else
+        {
+            // uint64_t
+            o = 1 + order - (64 - __builtin_clzl(pass));
+        }
+        oper_.set(cur, empty_index(), empty_index(), o, false, true);
         cur++;
     }
 
-    auto pages = order2pages(order);
     cur = beg;
     while (cur < end)
     {
@@ -284,7 +304,8 @@ void buddy<OPERATOR, MAXORDER, INDEX>::detach_page_from_list(index_t index)
 }
 
 template <typename OPERATOR, int MAXORDER, typename INDEX>
-requires detail::buddy_operator<OPERATOR, INDEX> INDEX buddy<OPERATOR, MAXORDER, INDEX>::split(index_t index)
+requires detail::buddy_operator<OPERATOR, INDEX> tuple<INDEX, INDEX>
+buddy<OPERATOR, MAXORDER, INDEX>::split(index_t index)
 {
     const auto [prev, next, order, used, merged] = oper_.get(index);
     CXXASSERT(order > 0 && !used && !merged);
@@ -294,7 +315,7 @@ requires detail::buddy_operator<OPERATOR, INDEX> INDEX buddy<OPERATOR, MAXORDER,
     auto next_order = order - 1;
     auto bro = bro_page_index(index, next_order);
     auto head = orders_[next_order];
-    index_t p;
+    index_t second = bro;
 
     if (bro < pages_)
     {
@@ -302,31 +323,25 @@ requires detail::buddy_operator<OPERATOR, INDEX> INDEX buddy<OPERATOR, MAXORDER,
         CXXASSERT(!bro_used && bro_merged);
         if (bro < index)
         {
-            oper_.set(bro, empty_index(), index, next_order, false, false);
-            oper_.set(index, bro, head, next_order, false, false);
-            p = index;
+            second = index;
+            std::swap(bro, index);
         }
-        else
-        {
-            oper_.set(index, empty_index(), bro, next_order, false, false);
-            oper_.set(bro, index, head, next_order, false, false);
-            p = bro;
-        }
+        oper_.set(index, empty_index(), bro, next_order, false, false);
+        oper_.set(bro, index, head, next_order, false, false);
     }
     else
     {
         // no brother
         oper_.set(index, empty_index(), head, next_order, false, false);
-        p = index;
     }
     if (head != empty_index())
     {
-        oper_.set_prev(head, p);
+        oper_.set_prev(head, second);
     }
 
     orders_[next_order] = index;
 
-    return index;
+    return make_tuple(index, second);
 }
 
 template <typename OPERATOR, int MAXORDER, typename INDEX>
@@ -371,10 +386,13 @@ requires detail::buddy_operator<OPERATOR, INDEX> optional<INDEX> buddy<OPERATOR,
 
 template <typename OPERATOR, int MAXORDER, typename INDEX>
 requires detail::buddy_operator<OPERATOR, INDEX>
-void buddy<OPERATOR, MAXORDER, INDEX>::free(index_t page_index)
+bool buddy<OPERATOR, MAXORDER, INDEX>::free(index_t page_index)
 {
     const auto [prev, next, order, used, merged] = oper_.get(page_index);
-    CXXASSERT(used && !merged);
+    if (!(used && !merged))
+    {
+        return false;
+    }
 
     attach_page_to_list(page_index, order);
 
@@ -382,13 +400,84 @@ void buddy<OPERATOR, MAXORDER, INDEX>::free(index_t page_index)
 
     free_pages_ += order2pages(order);
     CXXASSERT(free_pages_ <= pages_);
+    return true;
 }
 
 template <typename OPERATOR, int MAXORDER, typename INDEX>
 requires detail::buddy_operator<OPERATOR, INDEX>
-void buddy<OPERATOR, MAXORDER, INDEX>::alloc_at(index_t index, count_t count)
+bool buddy<OPERATOR, MAXORDER, INDEX>::alloc_at(index_t index, count_t pages)
 {
-    // todo: mark pages [index, index+count) used
+    index_t end = index + pages;
+    end = min(end, pages_);
+    if (index >= end)
+    {
+        return true;
+    }
+
+    while (index < end)
+    {
+        // find top level index
+        auto top = index;
+        while (oper_.get_merged(top))
+        {
+            auto i = bro_page_index(top);
+            if (i == empty_index())
+            {
+                break;
+            }
+            if (i < top)
+            {
+                top = i;
+            }
+            else
+            {
+                top--;
+            }
+        }
+        if (oper_.get_used(top))
+        {
+            return false;
+        }
+        // split util top == index
+        int order = oper_.get_order(top);
+        while (true)
+        {
+            if (top == index && top + order2pages(order) <= end)
+            {
+                detach_page_from_list(top);
+                oper_.set_used(top);
+                free_pages_ -= order2pages(order);
+                break;
+            }
+
+            auto [cur, bro] = split(top);
+
+            if (bro < empty_index())
+            {
+                if (bro <= index)
+                {
+                    if (oper_.get_used(bro))
+                    {
+                        return false;
+                    }
+                    // select right partition
+                    top = bro;
+                }
+                else
+                {
+                    // select left partition
+                    if (oper_.get_used(cur))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            order = oper_.get_order(top);
+        }
+        index = top + order2pages(order);
+    }
+    return true;
 }
 
 } // namespace freelibcxx

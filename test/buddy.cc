@@ -4,6 +4,7 @@
 #include "freelibcxx/random.hpp"
 #include "freelibcxx/tuple.hpp"
 #include <catch2/catch_test_macros.hpp>
+#include <cstddef>
 #include <iostream>
 #include <random>
 #include <unordered_map>
@@ -142,4 +143,57 @@ TEST_CASE("buddy random alloc", "buddy")
 
     REQUIRE(free == buddy.free_pages());
     REQUIRE(free == buddy.debug_free_pages());
+}
+
+TEST_CASE("buddy alloc at", "buddy")
+{
+    constexpr int test_pages = 1 << 14;
+    int pages = test_pages;
+    Operator oper(test_pages);
+    buddy<Operator> buddy(test_pages, oper);
+
+    buddy.alloc_at(2, 5);
+    REQUIRE(!buddy.alloc_at(4, 2));
+
+    pages -= 5;
+    REQUIRE(buddy.debug_free_pages() == pages);
+    buddy.free(2);
+    buddy.free(4);
+    buddy.free(6);
+    pages += 5;
+
+    REQUIRE(buddy.debug_free_pages() == pages);
+
+    buddy.alloc_at(1024, 1024 * 2);
+    pages -= 1024 * 2;
+    REQUIRE(buddy.debug_free_pages() == pages);
+
+    buddy.alloc_at(1023, 1);
+    pages -= 1;
+    REQUIRE(buddy.debug_free_pages() == pages);
+    REQUIRE(buddy.free_pages() == pages);
+
+    buddy.alloc_at(0, 16);
+    pages -= 16;
+    REQUIRE(buddy.debug_free_pages() == pages);
+    REQUIRE(buddy.free_pages() == pages);
+
+    for (int i = 0; i < pages; i++)
+    {
+        auto index = buddy.alloc(1);
+        if (!index.has_value())
+        {
+            REQUIRE(-1 == i);
+        }
+        auto idx = index.value();
+        if (idx >= 1023 && idx < 1024 * 2 + 1024)
+        {
+            REQUIRE(index.value() == -1);
+        }
+        if (idx >= 0 && idx < 6)
+        {
+            REQUIRE(index.value() == -1);
+        }
+    }
+    REQUIRE(buddy.debug_free_pages() == 0);
 }
