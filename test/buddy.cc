@@ -147,7 +147,7 @@ TEST_CASE("buddy random alloc", "buddy")
 
 TEST_CASE("buddy alloc at", "buddy")
 {
-    constexpr int test_pages = 1 << 14;
+    constexpr int test_pages = 15746;
     int pages = test_pages;
     Operator oper(test_pages);
     buddy<Operator> buddy(test_pages, oper);

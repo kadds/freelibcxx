@@ -152,7 +152,7 @@ void buddy<OPERATOR, MAXORDER, INDEX>::init_orders(index_t beg, index_t end, int
         cur += pages;
     }
     auto last = orders_[order];
-    oper_.set_next(end - pages, last);
+    oper_.set_next(cur - pages, last);
     oper_.set_prev(beg, empty_index());
     if (last != empty_index())
     {
