@@ -202,6 +202,7 @@ template <typename P, typename hash_func> class base_hash_map
                 else
                     table_[hash].next = it;
                 allocator_->Delete<>(cur_node);
+                size_--;
                 return;
             }
             prev = it;
