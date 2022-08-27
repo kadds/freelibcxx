@@ -77,4 +77,23 @@ class NullAllocator : public Allocator
     void deallocate(void *ptr) noexcept override {}
 };
 
+class CustomAllocator : public Allocator
+{
+  public:
+    CustomAllocator(void *p, size_t s)
+        : p_(p)
+    {
+    }
+    void *allocate(size_t size, size_t align) noexcept override
+    {
+        CXXASSERT(size <= s_);
+        return p_;
+    }
+    void deallocate(void *ptr) noexcept override {}
+
+  private:
+    void *p_;
+    size_t s_;
+};
+
 } // namespace freelibcxx

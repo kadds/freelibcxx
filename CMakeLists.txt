@@ -98,10 +98,11 @@ if (FREELIBCXX_TEST)
     add_test_execute(formatter "test/formatter.cc"  ${TEST_FLAGS} ${TEST_LIBS})
     add_test_execute(time "test/time.cc"  ${TEST_FLAGS} ${TEST_LIBS})
     add_test_execute(buddy "test/buddy.cc"  ${TEST_FLAGS} ${TEST_LIBS})
+    add_test_execute(unicode "test/unicode.cc"  ${TEST_FLAGS} ${TEST_LIBS})
     set(ALLSRC "test/vector.cc" "test/string.cc" "test/list.cc"
         "test/slist.cc" "test/circular_buffer.cc" "test/trunk_buffer.cc" 
         "test/skip_list.cc" "test/random.cc" "test/bit_set.cc" "test/hashmap.cc"
-        "test/formatter.cc" "test/time.cc" "test/buddy.cc")
+        "test/formatter.cc" "test/time.cc" "test/buddy.cc" "test/unicode.cc")
     
     MESSAGE("flags: ${TEST_FLAGS}")
     add_test_execute(all_in_one "${ALLSRC}" ${TEST_FLAGS} ${TEST_LIBS})

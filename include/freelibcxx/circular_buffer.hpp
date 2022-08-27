@@ -32,16 +32,23 @@ template <typename T> class circular_buffer
         buffer_ = reinterpret_cast<T *>(allocator->allocate(size * sizeof(T), alignof(T)));
     }
 
-    ~circular_buffer()
+    ~circular_buffer() { free(); }
+
+    circular_buffer &operator=(const circular_buffer &rhs) = delete;
+    circular_buffer &operator=(circular_buffer &&rhs)
     {
-        if (buffer_ != nullptr) [[likely]]
+        if (this == &rhs) [[unlikely]]
         {
-            allocator_->deallocate(buffer_);
+            return *this;
         }
+        free();
+        move(std::move(rhs));
+        return *this;
     }
 
-    circular_buffer &operator=(const circular_buffer &cb) = delete;
-    circular_buffer(const circular_buffer &cb) = delete;
+    circular_buffer(const circular_buffer &rhs) = delete;
+
+    circular_buffer(circular_buffer &&rhs) { move(rhs); }
 
     bool write(const T &t) { return write(&t, 1) == 1; }
 
@@ -128,6 +135,24 @@ template <typename T> class circular_buffer
         read_off_ = offset;
 
         return size;
+    }
+
+  private:
+    void free()
+    {
+        if (buffer_ != nullptr) [[likely]]
+        {
+            allocator_->deallocate(buffer_);
+        }
+    }
+
+    void move(const circular_buffer &rhs)
+    {
+        allocator_ = rhs.allocator_;
+        buffer_ = rhs.buffer_;
+        length_ = rhs.length_;
+        read_off_ = rhs.read_off_;
+        write_off_ = rhs.write_off_;
     }
 };
 
