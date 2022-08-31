@@ -57,7 +57,7 @@ template <typename T> class span
 
     span subspan(size_t pos, size_t size)
     {
-        CXXASSERT(pos + size < size_);
+        CXXASSERT(pos + size <= size_);
         CXXASSERT(pos < size_);
 
         return span(ptr_ + pos, size);
@@ -65,7 +65,7 @@ template <typename T> class span
 
     span subspan(size_t pos)
     {
-        CXXASSERT(pos < size_);
+        CXXASSERT(pos <= size_);
 
         return span(ptr_ + pos, size_ - pos);
     }

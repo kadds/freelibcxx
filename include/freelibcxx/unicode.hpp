@@ -29,7 +29,7 @@ inline optional<char32_t> utf8_to_unicode(span<const char> data)
             }
         }
     }
-    if (data.size() < bytes) [[unlikely]]
+    if (data.size() < (size_t)bytes) [[unlikely]]
     {
         return nullopt;
     }
@@ -55,10 +55,11 @@ inline optional<char32_t> utf8_to_unicode(span<const char> data)
 inline optional<span<const char>> advance_utf8(span<const char> &utf8stream)
 {
     span<const char> token;
-    for (int i = 0; i < utf8stream.size(); i++)
+    for (size_t i = 0; i < utf8stream.size(); i++)
     {
         unsigned char ch = utf8stream[i];
-        if (i != 0 && ch <= 0x7F)
+        if (ch < 0x80 || (ch & 0b1110'0000) == 0b1100'0000 || (ch & 0b1111'0000) == 0b1110'0000 ||
+            (ch & 0b1111'1000) == 0b1111'0000)
         {
             auto span = utf8stream.subspan(0, i + 1);
             utf8stream = utf8stream.subspan(i + 1);
@@ -66,7 +67,9 @@ inline optional<span<const char>> advance_utf8(span<const char> &utf8stream)
         }
     }
 
-    return nullopt;
+    auto span = utf8stream;
+    utf8stream = utf8stream.subspan(utf8stream.size());
+    return span;
 }
 
 inline optional<span<char>> unicode_to_utf8(char32_t codepoint, span<char> buffer)

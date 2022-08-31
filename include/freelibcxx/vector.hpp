@@ -3,6 +3,7 @@
 #include "freelibcxx/allocator.hpp"
 #include "freelibcxx/assert.hpp"
 #include "freelibcxx/iterator.hpp"
+#include "freelibcxx/span.hpp"
 #include "utils.hpp"
 #include <cstddef>
 #include <type_traits>
@@ -135,6 +136,10 @@ template <typename E> class base_vector
         CXXASSERT(count_ > 0);
         return buffer_[0];
     }
+
+    ::freelibcxx::span<E> span() { return ::freelibcxx::span<E>(buffer_, count_); }
+
+    ::freelibcxx::span<const E> cspan() const { return ::freelibcxx::span<const E>(buffer_, count_); }
 
     // insert before
     template <typename... Args> iterator insert_at(size_t index, Args &&...args)
@@ -339,10 +344,17 @@ template <typename E> class base_vector
         count_ = rhs.count_;
         cap_ = rhs.count_;
         allocator_ = rhs.allocator_;
-        buffer_ = reinterpret_cast<E *>(allocator_->allocate(count_ * sizeof(E), alignof(E)));
-        for (size_t i = 0; i < count_; i++)
+        if (count_ != 0)
         {
-            new (buffer_ + i) E(rhs.buffer_[i]);
+            buffer_ = reinterpret_cast<E *>(allocator_->allocate(count_ * sizeof(E), alignof(E)));
+            for (size_t i = 0; i < count_; i++)
+            {
+                new (buffer_ + i) E(rhs.buffer_[i]);
+            }
+        }
+        else
+        {
+            buffer_ = nullptr;
         }
     }
 
