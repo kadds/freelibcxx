@@ -107,10 +107,10 @@ void sort(T beg, T end)
         return;
     }
     auto low = beg;
-    auto high = end;
+    auto high = end - 1;
 
     // quick sort
-    auto &pilot = *beg;
+    auto pilot = *beg;
     while (low < high)
     {
         while (*high >= pilot && high > low)
