@@ -1,13 +1,15 @@
+#include "common.hpp"
 #include "freelibcxx/delegate.hpp"
 #include "freelibcxx/function_ref.hpp"
 #include "freelibcxx/inplace_function.hpp"
-#include "common.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <type_traits>
 
 namespace
 {
 int add_one(int value) noexcept { return value + 1; }
+
+int invoke_zero_argument(freelibcxx::function_ref<int()> function) { return function(); }
 
 struct accumulator
 {
@@ -51,6 +53,7 @@ TEST_CASE("function_ref can be empty and copied", "function_ref")
     auto second = first;
     REQUIRE(first);
     REQUIRE(second);
+    REQUIRE(invoke_zero_argument([] { return 7; }) == 7);
 }
 
 TEST_CASE("delegate binds free and member functions", "delegate")
@@ -90,4 +93,3 @@ TEST_CASE("inplace_function owns a bounded callable", "inplace_function")
     REQUIRE(first == nullptr);
     REQUIRE(second);
 }
-

@@ -21,8 +21,7 @@ template <typename R, bool IsNoexcept, size_t Capacity, typename... Args> class 
     using destroy_t = void (*)(void *) noexcept;
     using move_t = void (*)(void *, void *) noexcept;
 
-    template <typename F>
-    static R invoke(void *storage, Args... args) noexcept(IsNoexcept)
+    template <typename F> static R invoke(void *storage, Args... args) noexcept(IsNoexcept)
     {
         auto *callable = static_cast<F *>(storage);
         if constexpr (std::is_void_v<R>)
@@ -48,7 +47,7 @@ template <typename R, bool IsNoexcept, size_t Capacity, typename... Args> class 
     inplace_function_impl(std::nullptr_t) noexcept {}
 
     template <typename F>
-    requires(!std::is_same_v<std::remove_cvref_t<F>, inplace_function_impl>)
+        requires(!std::is_same_v<std::remove_cvref_t<F>, inplace_function_impl>)
     explicit inplace_function_impl(F &&callable) noexcept
     {
         using callable_t = std::remove_cvref_t<F>;
@@ -133,7 +132,8 @@ template <typename R, bool IsNoexcept, size_t Capacity, typename... Args> class 
 } // namespace callback_detail
 
 template <typename R, typename... Args, size_t Capacity>
-class inplace_function<R(Args...), Capacity> : public callback_detail::inplace_function_impl<R, false, Capacity, Args...>
+class inplace_function<R(Args...), Capacity>
+    : public callback_detail::inplace_function_impl<R, false, Capacity, Args...>
 {
     using base = callback_detail::inplace_function_impl<R, false, Capacity, Args...>;
 

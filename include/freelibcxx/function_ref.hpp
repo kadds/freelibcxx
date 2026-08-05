@@ -18,8 +18,7 @@ template <typename R, bool IsNoexcept, typename... Args> class function_ref_impl
     using stub_t = R (*)(const void *, Args...) noexcept(IsNoexcept);
     using function_t = R (*)(Args...) noexcept(IsNoexcept);
 
-    template <typename F>
-    static R invoke_object(const void *object, Args... args) noexcept(IsNoexcept)
+    template <typename F> static R invoke_object(const void *object, Args... args) noexcept(IsNoexcept)
     {
         auto *callable = const_cast<F *>(static_cast<const F *>(object));
         if constexpr (std::is_void_v<R>)
@@ -34,7 +33,7 @@ template <typename R, bool IsNoexcept, typename... Args> class function_ref_impl
 
     static R invoke_function(const void *object, Args... args) noexcept(IsNoexcept)
     {
-        auto function = reinterpret_cast<function_t>(object);
+        auto function = reinterpret_cast<function_t>(const_cast<void *>(object));
         if constexpr (std::is_void_v<R>)
         {
             function(std::forward<Args>(args)...);
@@ -50,18 +49,19 @@ template <typename R, bool IsNoexcept, typename... Args> class function_ref_impl
     constexpr function_ref_impl(std::nullptr_t) noexcept {}
 
     template <typename F>
-    requires(!std::is_function_v<F> && !std::is_same_v<std::remove_cvref_t<F>, function_ref_impl> &&
-             std::is_invocable_r_v<R, F &, Args...> &&
-             (!IsNoexcept || std::is_nothrow_invocable_r_v<R, F &, Args...>))
-    constexpr function_ref_impl(F &callable) noexcept
+        requires(!std::is_function_v<std::remove_reference_t<F>> &&
+                 !std::is_same_v<std::remove_cvref_t<F>, function_ref_impl> &&
+                 std::is_invocable_r_v<R, std::remove_reference_t<F> &, Args...> &&
+                 (!IsNoexcept || std::is_nothrow_invocable_r_v<R, std::remove_reference_t<F> &, Args...>))
+    constexpr function_ref_impl(F &&callable) noexcept
         : object_(&callable)
-        , stub_(&invoke_object<F>)
+        , stub_(&invoke_object<std::remove_reference_t<F>>)
     {
     }
 
     template <typename F>
-    requires(std::is_function_v<F> && std::is_invocable_r_v<R, F &, Args...> &&
-             (!IsNoexcept || std::is_nothrow_invocable_r_v<R, F &, Args...>))
+        requires(std::is_function_v<F> && std::is_invocable_r_v<R, F &, Args...> &&
+                 (!IsNoexcept || std::is_nothrow_invocable_r_v<R, F &, Args...>))
     constexpr function_ref_impl(F &function) noexcept
         : object_(reinterpret_cast<const void *>(+function))
         , stub_(function == nullptr ? nullptr : &invoke_function)
