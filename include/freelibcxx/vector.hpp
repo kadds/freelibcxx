@@ -364,23 +364,24 @@ template <typename E> class base_vector
             return;
 
         E *buffer = reinterpret_cast<E *>(allocator_->allocate(cap * sizeof(E), alignof(E)));
-        if (buffer_ != nullptr)
-        {
-            for (size_t i = 0; i < count_; i++)
-            {
-                if constexpr (std::is_nothrow_move_constructible_v<E>)
-                {
-                    new (buffer + i) E(std::move(buffer_[i]));
-                }
-                else
-                {
-                    new (buffer + i) E(buffer_[i]);
-                }
-                buffer_[i].~E();
-            }
+        if (buffer == nullptr)
+            return;
 
-            allocator_->deallocate(buffer_);
+        for (size_t i = 0; i < count_; i++)
+        {
+            if constexpr (std::is_nothrow_move_constructible_v<E>)
+            {
+                new (buffer + i) E(std::move(buffer_[i]));
+            }
+            else
+            {
+                new (buffer + i) E(buffer_[i]);
+            }
+            buffer_[i].~E();
         }
+
+        if (buffer_ != nullptr)
+            allocator_->deallocate(buffer_);
         buffer_ = buffer;
         cap_ = cap;
     }

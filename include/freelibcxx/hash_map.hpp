@@ -405,6 +405,19 @@ class hash_map : public base_hash_map<hash_map_pair<K, V>, hash_func>
         }
         return nullopt;
     }
+
+    V *get_ptr(const K &key)
+    {
+        if (this->size_ == 0) [[unlikely]]
+            return nullptr;
+        size_t hash = this->hash_key(key);
+        for (auto it = this->table_[hash].next; it != nullptr; it = it->next)
+        {
+            if (it->content.key == key)
+                return &it->content.value;
+        }
+        return nullptr;
+    }
 };
 
 template <typename K, typename hash_func = hasher<K>> class hash_set : public base_hash_map<hash_set_pair<K>, hash_func>
