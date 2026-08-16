@@ -121,3 +121,26 @@ TEST_CASE("from hex", "formatter")
     ss = {"fg"};
     REQUIRE(ss.to_int(16).value_or(0) == 0);
 }
+
+TEST_CASE("bounded brace formatter", "formatter")
+{
+    char buffer[64]{};
+    auto result = format_to(span<char>(buffer, sizeof(buffer) - 1), format_string<int, unsigned>{"{} {:08x}"},
+                            -7, 0xabU);
+
+    REQUIRE(result.error == format_error::none);
+    REQUIRE_FALSE(result.truncated);
+    buffer[result.written] = '\0';
+    REQUIRE(std::string_view(buffer) == "-7 000000ab");
+}
+
+TEST_CASE("bounded brace formatter escapes and truncates", "formatter")
+{
+    char buffer[8]{};
+    auto result = format_to(span<char>(buffer, sizeof(buffer) - 1), format_string<const char *>"{{{}}}", "hello");
+
+    REQUIRE(result.error == format_error::none);
+    REQUIRE(result.truncated);
+    buffer[result.written] = '\0';
+    REQUIRE(std::string_view(buffer) == "{hello");
+}
