@@ -210,6 +210,52 @@ template <typename P, typename hash_func> class base_hash_map
         }
     }
 
+    // Detach preserves the node allocation so a caller can reattach it
+    // without performing another allocation. This is used by ownership
+    // transactions whose rollback must remain infallible.
+    node_t *detach(const K &key)
+    {
+        if (size_ == 0) [[unlikely]]
+            return nullptr;
+        const size_t hash = hash_key(key);
+        node_t *previous = nullptr;
+        for (auto *node = table_[hash].next; node != nullptr; node = node->next)
+        {
+            if (node->content.key != key)
+            {
+                previous = node;
+                continue;
+            }
+            if (previous != nullptr)
+                previous->next = node->next;
+            else
+                table_[hash].next = node->next;
+            node->next = nullptr;
+            size_--;
+            return node;
+        }
+        return nullptr;
+    }
+
+    // Attach consumes a node previously returned by detach. It deliberately
+    // does not grow the hash table: rollback paths must not allocate.
+    bool attach(node_t *node)
+    {
+        if (node == nullptr || table_ == nullptr || has(node->content.key))
+            return false;
+        const size_t hash = hash_key(node->content.key);
+        node->next = table_[hash].next;
+        table_[hash].next = node;
+        size_++;
+        return true;
+    }
+
+    void destroy_detached(node_t *node)
+    {
+        if (node != nullptr)
+            allocator_->Delete<>(node);
+    }
+
     size_t size() const { return size_; }
 
     void clear() noexcept
