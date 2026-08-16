@@ -4,6 +4,10 @@
 #include <catch2/catch_test_macros.hpp>
 using namespace freelibcxx;
 
+static_assert(format_detail::valid_literal<int>("{:08x}", 6));
+static_assert(!format_detail::valid_literal<int>("{:65x}", 6));
+static_assert(!format_detail::valid_literal<const char *>("{:d}", 4));
+
 TEST_CASE("format int", "formatter")
 {
     string ss(&LibAllocatorV);
@@ -125,8 +129,7 @@ TEST_CASE("from hex", "formatter")
 TEST_CASE("bounded brace formatter", "formatter")
 {
     char buffer[64]{};
-    auto result = format_to(span<char>(buffer, sizeof(buffer) - 1), format_string<int, unsigned>{"{} {:08x}"},
-                            -7, 0xabU);
+    auto result = format_to(span<char>(buffer, sizeof(buffer) - 1), "{} {:08x}", -7, 0xabU);
 
     REQUIRE(result.error == format_error::none);
     REQUIRE_FALSE(result.truncated);
@@ -137,10 +140,23 @@ TEST_CASE("bounded brace formatter", "formatter")
 TEST_CASE("bounded brace formatter escapes and truncates", "formatter")
 {
     char buffer[8]{};
-    auto result = format_to(span<char>(buffer, sizeof(buffer) - 1), format_string<const char *>"{{{}}}", "hello");
+    auto result = format_to(span<char>(buffer, sizeof(buffer) - 2), "{{{}}}", "hello");
 
     REQUIRE(result.error == format_error::none);
     REQUIRE(result.truncated);
     buffer[result.written] = '\0';
     REQUIRE(std::string_view(buffer) == "{hello");
+}
+
+TEST_CASE("bounded brace formatter formats decimal hex and pointers", "formatter")
+{
+    char buffer[96]{};
+    auto result = format_to(span<char>(buffer, sizeof(buffer) - 1), "{:d} {:x} {:X} {:p}", -42, 0xabU, 0xabU,
+                            static_cast<void *>(buffer));
+
+    REQUIRE(result.error == format_error::none);
+    REQUIRE_FALSE(result.truncated);
+    buffer[result.written] = '\0';
+    const std::string_view rendered(buffer);
+    REQUIRE(rendered.starts_with("-42 ab AB 0x"));
 }

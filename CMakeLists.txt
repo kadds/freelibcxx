@@ -69,7 +69,7 @@ target_include_directories(freelibcxx PUBLIC include)
 
 set_target_properties(freelibcxx PROPERTIES LINKER_LANGUAGE CXX)
 set_target_properties(freelibcxx PROPERTIES COMPILE_FLAGS 
-    "-Wunreachable-code -pipe -std=c++20 -Wno-pedantic \
+    "-Wunreachable-code -pipe -std=c++23 -Wno-pedantic \
     -fno-rtti -fno-asynchronous-unwind-tables -fno-common \
     -fno-plt -fno-exceptions -fno-pic -fpie -Wall \
     -ffreestanding -fno-stack-protector -fno-builtin ${TEST_FLAGS}")
@@ -80,7 +80,7 @@ function(add_test_execute target files)
     target_link_libraries(freelibcxx_test_${target} PRIVATE ${ARGV3})
 
     target_include_directories(freelibcxx_test_${target} PUBLIC test/)
-    set_target_properties(freelibcxx_test_${target} PROPERTIES COMPILE_FLAGS "${ARGV2} -std=c++20")
+    set_target_properties(freelibcxx_test_${target} PROPERTIES COMPILE_FLAGS "${ARGV2} -std=c++23")
 
 endfunction(add_test_execute)
 
