@@ -148,6 +148,18 @@ TEST_CASE("bounded brace formatter escapes and truncates", "formatter")
     REQUIRE(std::string_view(buffer) == "{hello");
 }
 
+TEST_CASE("bounded brace formatter stops char arrays at their terminator", "formatter")
+{
+    char value[32] = "hello";
+    char buffer[64]{};
+    auto result = format_to(span<char>(buffer, sizeof(buffer) - 1), "{}", value);
+
+    REQUIRE(result.error == format_error::none);
+    REQUIRE_FALSE(result.truncated);
+    buffer[result.written] = '\0';
+    REQUIRE(std::string_view(buffer) == "hello");
+}
+
 TEST_CASE("bounded brace formatter formats decimal hex and pointers", "formatter")
 {
     char buffer[96]{};

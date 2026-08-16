@@ -449,10 +449,7 @@ template <typename T> void append_value(writer &output, const T &value, char spe
     using type = std::remove_cv_t<std::remove_reference_t<T>>;
     if constexpr (is_string_type<T>())
     {
-        if constexpr (std::is_array_v<type>)
-            output.put(value, sizeof(value) - 1);
-        else
-            output.put(value);
+        output.put(value);
     }
     else if constexpr (std::is_same_v<type, bool>)
     {
