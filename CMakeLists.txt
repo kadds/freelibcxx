@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.3)
+cmake_minimum_required (VERSION 3.9)
 
 project(freelibcxx CXX)
 option(FREELIBCXX_TEST "enable testing for freelibcxx" OFF)
