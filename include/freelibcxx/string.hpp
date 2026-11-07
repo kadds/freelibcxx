@@ -452,9 +452,17 @@ class string
 
     bool operator==(const string &rhs) const;
     bool operator==(const char *rhs) const;
+    bool operator==(const_string_view rhs) const
+    {
+        auto lhs = const_view();
+        if (lhs.size() != rhs.size())
+            return false;
+        return lhs.size() == 0 || memcmp(lhs.data(), rhs.data(), lhs.size()) == 0;
+    }
 
     bool operator!=(const string &rhs) const { return !operator==(rhs); }
     bool operator!=(const char *rhs) const { return !operator==(rhs); }
+    bool operator!=(const_string_view rhs) const { return !operator==(rhs); }
 
     void clear() { resize(0); }
     void resize(size_t size);
