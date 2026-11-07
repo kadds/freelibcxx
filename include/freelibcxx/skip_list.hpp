@@ -158,7 +158,8 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
         for (int l = level_; l >= 0; l--)
         {
             auto cur = cache_nodes[l]->level_[l].next_;
-            if (cur != nullptr) {
+            if (cur != nullptr)
+            {
                 cache_nodes[l]->level_[l].next_ = cur->level_[l].next_;
             }
         }
@@ -171,14 +172,57 @@ template <typename E, typename RDENG = mt19937_random_engine, int MAXLEVEL = 20>
 
     iterator remove(iterator iter)
     {
-        auto next = iter;
-        next++;
-        bool ok = remove(iter.get()->element_);
-        if (ok)
+        auto *target = iter.get();
+        if (target == nullptr)
+            return iter;
+
+        // The head links identify the front node directly, independent of its
+        // ordering key.
+        if (node_->level_[0].next_ == target)
         {
-            return next;
+            auto *next = target->level_[0].next_;
+            if (next != nullptr)
+                next->back_ = node_;
+
+            for (int level = 0; level <= level_; ++level)
+            {
+                if (node_->level_[level].next_ == target)
+                    node_->level_[level].next_ = target->level_[level].next_;
+            }
+
+            target->element_.~E();
+            allocator_->Delete(target);
+            --count_;
+            return iterator(next);
         }
-        return iter;
+
+        auto *previous = node_;
+        while (previous->level_[0].next_ != nullptr && previous->level_[0].next_ != target)
+        {
+            previous = previous->level_[0].next_;
+        }
+        if (previous->level_[0].next_ != target)
+            return iter;
+
+        auto *next = target->level_[0].next_;
+        if (next != nullptr)
+            next->back_ = previous;
+
+        for (int level = level_; level >= 0; --level)
+        {
+            auto *level_previous = node_;
+            while (level_previous->level_[level].next_ != nullptr && level_previous->level_[level].next_ != target)
+            {
+                level_previous = level_previous->level_[level].next_;
+            }
+            if (level_previous->level_[level].next_ == target)
+                level_previous->level_[level].next_ = target->level_[level].next_;
+        }
+
+        target->element_.~E();
+        allocator_->Delete(target);
+        --count_;
+        return iterator(next);
     }
 
     size_t size() const { return count_; }
